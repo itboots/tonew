@@ -104,7 +104,56 @@ export default function Home() {
 
     // 每30秒检查一次缓存状态
     const interval = setInterval(fetchCacheStatus, 30000);
-    return () => clearInterval(interval);
+
+    // 监听页面导航事件（浏览器后退/前进/重新访问）
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // 如果页面是从缓存中恢复的，重新加载数据
+      if (event.persisted) {
+        console.log('🔄 页面从缓存恢复，重新加载数据');
+        fetchContent(false, 1);
+        fetchCacheStatus();
+      }
+    };
+
+    // 监听浏览器后退/前进事件
+    const handlePopState = () => {
+      console.log('🔄 浏览器导航事件，重新加载数据');
+      fetchContent(false, 1);
+      fetchCacheStatus();
+    };
+
+    // 监听页面可见性变化（从其他标签页切换回来时）
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 页面重新可见，检查并刷新数据');
+        fetchCacheStatus();
+        // 获取当前状态，如果数据过期或为空则重新加载
+        if (items.length === 0 || !cacheStatus?.isValid) {
+          fetchContent(false, 1);
+        }
+      }
+    };
+
+    // 监听窗口获得焦点事件
+    const handleWindowFocus = () => {
+      console.log('🔄 窗口获得焦点，检查数据状态');
+      fetchCacheStatus();
+    };
+
+    // 添加事件监听器
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
+
+    // 清理函数
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

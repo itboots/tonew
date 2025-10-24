@@ -1,0 +1,414 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cyber-primary: #00ffff;
+  --cyber-secondary: #ff00ff;
+  --cyber-accent: #ff00aa;
+  --cyber-bg-dark: #000510;
+  --cyber-bg-card: rgba(10, 15, 30, 0.95);
+  --cyber-text: #ffffff;
+  --cyber-glow-primary: rgba(0, 255, 255, 1);
+  --cyber-glow-secondary: rgba(255, 0, 255, 1);
+  --cyber-glow-accent: rgba(255, 0, 170, 1);
+  --cyber-border: rgba(0, 255, 255, 0.8);
+  --cyber-grid: rgba(0, 255, 255, 0.05);
+}
+
+body {
+  background-color: var(--cyber-bg-dark);
+  color: var(--cyber-text);
+  font-family: 'Orbitron', sans-serif;
+}
+
+/* 纯色背景，去掉网格 */
+
+/* 赛博背景渐变效果 */
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(0, 255, 255, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(255, 0, 255, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 40% 40%, rgba(255, 0, 170, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.8;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* 发光效果工具类 */
+@layer utilities {
+  .glow-cyan {
+    box-shadow: 0 0 10px var(--cyber-glow-primary),
+      0 0 20px var(--cyber-glow-primary),
+      0 0 30px rgba(0, 240, 255, 0.3);
+  }
+
+  .glow-magenta {
+    box-shadow: 0 0 10px var(--cyber-glow-secondary),
+      0 0 20px var(--cyber-glow-secondary),
+      0 0 30px rgba(255, 0, 255, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 10px var(--cyber-glow-accent),
+      0 0 20px var(--cyber-glow-accent),
+      0 0 30px rgba(123, 44, 191, 0.3);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 10px var(--cyber-glow-primary),
+      0 0 20px rgba(0, 240, 255, 0.6),
+      0 0 30px rgba(0, 240, 255, 0.3);
+  }
+
+  .text-glow-magenta {
+    text-shadow: 0 0 10px var(--cyber-glow-secondary),
+      0 0 20px rgba(255, 0, 255, 0.6),
+      0 0 30px rgba(255, 0, 255, 0.3);
+  }
+
+  .text-glow-purple {
+    text-shadow: 0 0 10px var(--cyber-glow-accent),
+      0 0 20px rgba(123, 44, 191, 0.6),
+      0 0 30px rgba(123, 44, 191, 0.3);
+  }
+
+  .cyber-border {
+    border: 1px solid var(--cyber-border);
+    position: relative;
+  }
+
+  .cyber-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border: 1px solid transparent;
+    border-image: linear-gradient(45deg, var(--cyber-primary), var(--cyber-secondary), var(--cyber-accent)) 1;
+    animation: border-rotate 3s linear infinite;
+    opacity: 0.8;
+  }
+
+  @keyframes border-rotate {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+  }
+
+  .cyber-gradient {
+    background: linear-gradient(135deg, var(--cyber-bg-dark), var(--cyber-bg-card));
+    position: relative;
+  }
+
+  .cyber-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      transparent 0%,
+      var(--cyber-primary) 50%,
+      transparent 100%
+    );
+    opacity: 0.1;
+    animation: gradient-shift 4s ease-in-out infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% { transform: translateX(-100%); }
+    50% { transform: translateX(100%); }
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 扫描线效果 */
+  .cyber-scanline {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cyber-scanline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyber-primary), transparent);
+    animation: scanline 2s linear infinite;
+  }
+
+  @keyframes scanline {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  /* 故障效果 */
+  .cyber-glitch {
+    position: relative;
+  }
+
+  .cyber-glitch::before,
+  .cyber-glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.8;
+  }
+
+  .cyber-glitch::before {
+    animation: glitch-1 0.5s infinite;
+    color: var(--cyber-primary);
+    z-index: 1;
+  }
+
+  .cyber-glitch::after {
+    animation: glitch-2 0.5s infinite;
+    color: var(--cyber-secondary);
+    z-index: 2;
+  }
+
+  @keyframes glitch-1 {
+    0%, 100% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+  }
+
+  @keyframes glitch-2 {
+    0%, 100% { transform: translate(0); }
+    20% { transform: translate(2px, -2px); }
+    40% { transform: translate(2px, 2px); }
+    60% { transform: translate(-2px, -2px); }
+    80% { transform: translate(-2px, 2px); }
+  }
+
+  /* 新增赛博动画效果 */
+  @keyframes neon-flicker {
+    0%, 100% { opacity: 1; }
+    41.99% { opacity: 1; }
+    42% { opacity: 0.8; }
+    43% { opacity: 1; }
+    47.99% { opacity: 1; }
+    48% { opacity: 0.9; }
+    49% { opacity: 1; }
+  }
+
+  @keyframes data-stream {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes cyber-hologram {
+    0%, 100% {
+      filter: hue-rotate(0deg) brightness(1);
+      transform: translateY(0);
+    }
+    25% {
+      filter: hue-rotate(90deg) brightness(1.2);
+    }
+    50% {
+      filter: hue-rotate(180deg) brightness(0.8);
+      transform: translateY(-2px);
+    }
+    75% {
+      filter: hue-rotate(270deg) brightness(1.1);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px var(--cyber-primary),
+                  0 0 10px var(--cyber-primary),
+                  0 0 15px var(--cyber-primary);
+    }
+    50% {
+      box-shadow: 0 0 10px var(--cyber-primary),
+                  0 0 20px var(--cyber-primary),
+                  0 0 30px var(--cyber-primary);
+    }
+  }
+
+  @keyframes border-pulse {
+    0%, 100% {
+      border-color: var(--cyber-primary);
+      box-shadow: 0 0 5px var(--cyber-primary);
+    }
+    50% {
+      border-color: var(--cyber-secondary);
+      box-shadow: 0 0 15px var(--cyber-secondary);
+    }
+  }
+
+  /* 新的赛博类 */
+  .neon-flicker {
+    animation: neon-flicker 3s infinite;
+  }
+
+  .data-stream {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .data-stream::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(0deg,
+      transparent 0%,
+      var(--cyber-primary) 50%,
+      transparent 100%);
+    animation: data-stream 2s linear infinite;
+    pointer-events: none;
+  }
+
+  .cyber-hologram {
+    animation: cyber-hologram 4s ease-in-out infinite;
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .border-pulse {
+    animation: border-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* 增强的扫描线效果 */
+  .cyber-scanline-enhanced {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cyber-scanline-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      var(--cyber-primary) 50%,
+      transparent 100%);
+    animation: scanline 2s linear infinite;
+  }
+
+  .cyber-scanline-enhanced::after {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(0deg,
+      transparent 0%,
+      var(--cyber-secondary) 50%,
+      transparent 100%);
+    animation: scanline-vertical 3s linear infinite;
+  }
+
+  @keyframes scanline-vertical {
+    0% { top: -100%; }
+    100% { top: 100%; }
+  }
+
+  /* 霓虹边框效果 */
+  .neon-border {
+    border: 2px solid var(--cyber-primary);
+    box-shadow: 0 0 10px var(--cyber-primary),
+                0 0 20px var(--cyber-primary),
+                inset 0 0 10px rgba(0, 240, 255, 0.1);
+    animation: border-pulse 2s ease-in-out infinite;
+  }
+
+  /* 赛博按钮增强 */
+  .cyber-button-enhanced {
+    position: relative;
+    background: linear-gradient(135deg, var(--cyber-bg-card), var(--cyber-primary));
+    border: 1px solid var(--cyber-primary);
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .cyber-button-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(0, 240, 255, 0.4) 50%,
+      transparent 100%);
+    transition: left 0.5s ease;
+  }
+
+  .cyber-button-enhanced:hover::before {
+    left: 100%;
+  }
+
+  .cyber-button-enhanced:hover {
+    box-shadow: 0 0 20px var(--cyber-primary),
+                0 0 40px var(--cyber-primary);
+    transform: translateY(-2px);
+  }
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  body::before {
+    background-size: 30px 30px;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: rgba(0, 240, 255, 0.2);
+  }
+}
+
+/* 滚动优化 */
+* {
+  scroll-behavior: smooth;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

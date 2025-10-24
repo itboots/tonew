@@ -7,14 +7,32 @@ const AUTO_UPDATE_INTERVAL = 60000; // 1分钟自动检查更新
 
 // 获取环境变量并提供警告
 const getRedisConfig = () => {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // 支持多种环境变量名称格式
+  const url = process.env.UPSTASH_REDIS_REST_URL ||
+              process.env.UPSTASH_REDIS_URL ||
+              process.env.REDIS_URL;
+
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ||
+                process.env.UPSTASH_REDIS_TOKEN ||
+                process.env.REDIS_TOKEN;
 
   if (!url || !token) {
-    console.warn('⚠️ Redis 配置缺失:', {
-      url: url ? '已配置' : '未配置',
-      token: token ? '已配置' : '未配置'
-    });
+    // 静态构建阶段不输出警告
+    if (process.env.NEXT_PHASE !== 'phase-production-build' && !process.env.NEXT_PUBLIC_VERCEL_ENV) {
+      console.warn('⚠️ Redis 配置缺失:', {
+        url: url ? '已配置' : '未配置',
+        token: token ? '已配置' : '未配置',
+        envKeys: {
+          UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
+          UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+          UPSTASH_REDIS_URL: !!process.env.UPSTASH_REDIS_URL,
+          UPSTASH_REDIS_TOKEN: !!process.env.UPSTASH_REDIS_TOKEN,
+          REDIS_URL: !!process.env.REDIS_URL,
+          REDIS_TOKEN: !!process.env.REDIS_TOKEN,
+        },
+        buildPhase: process.env.NEXT_PHASE || 'unknown'
+      });
+    }
     return null;
   }
 

@@ -5,11 +5,33 @@ import { ValueItem } from '@/types';
 const REDIS_CACHE_TTL = 900; // 15分钟Redis缓存
 const AUTO_UPDATE_INTERVAL = 60000; // 1分钟自动检查更新
 
+// 获取环境变量并提供警告
+const getRedisConfig = () => {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    console.warn('⚠️ Redis 配置缺失:', {
+      url: url ? '已配置' : '未配置',
+      token: token ? '已配置' : '未配置'
+    });
+    return null;
+  }
+
+  return { url, token };
+};
+
 // 初始化 Upstash Redis 客户端
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+const redisConfig = getRedisConfig();
+const redis = redisConfig ? new Redis({
+  url: redisConfig.url,
+  token: redisConfig.token,
+}) : null;
+
+// 检查Redis客户端是否可用
+export const isRedisAvailable = (): boolean => {
+  return redis !== null;
+};
 
 // 缓存键常量
 export const CACHE_KEYS = {
@@ -42,6 +64,11 @@ export class RedisCache {
     lastUpdate: string | null;
   }> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，返回空数据');
+        return { items: [], total: 0, hasMore: false, lastUpdate: null };
+      }
+
       const data = await redis.get<CacheData>(CACHE_KEYS.SCRAPER_DATA);
       if (!data) {
         return { items: [], total: 0, hasMore: false, lastUpdate: null };
@@ -70,6 +97,11 @@ export class RedisCache {
    */
   static async shouldAutoUpdate(): Promise<boolean> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，跳过自动更新检查');
+        return false;
+      }
+
       const lastUpdate = await this.getLastUpdate();
       if (!lastUpdate) return true;
 
@@ -90,6 +122,11 @@ export class RedisCache {
    */
   static async storeData(items: ValueItem[], forceRefresh: boolean = false): Promise<void> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，跳过数据存储');
+        return;
+      }
+
       const now = new Date().toISOString();
       const updateCount = forceRefresh ?
         await this.getUpdateCount() + 1 :
@@ -133,6 +170,11 @@ export class RedisCache {
    */
   static async setData(items: ValueItem[], forceRefresh: boolean = false): Promise<void> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，跳过数据缓存');
+        return;
+      }
+
       const now = new Date().toISOString();
       const updateCount = forceRefresh ?
         await this.getUpdateCount() + 1 :
@@ -173,6 +215,9 @@ export class RedisCache {
    */
   static async getData(): Promise<CacheData | null> {
     try {
+      if (!redis) {
+        return null;
+      }
       const data = await redis.get<CacheData>(CACHE_KEYS.SCRAPER_DATA);
       return data;
     } catch (error) {
@@ -186,6 +231,9 @@ export class RedisCache {
    */
   static async getLastUpdate(): Promise<string | null> {
     try {
+      if (!redis) {
+        return null;
+      }
       return await redis.get<string>(CACHE_KEYS.LAST_UPDATE);
     } catch (error) {
       console.error('❌ 获取最后更新时间失败:', error);
@@ -198,6 +246,9 @@ export class RedisCache {
    */
   static async getUpdateCount(): Promise<number> {
     try {
+      if (!redis) {
+        return 0;
+      }
       const count = await redis.get<number>(CACHE_KEYS.UPDATE_COUNT);
       return count || 0;
     } catch (error) {
@@ -211,6 +262,11 @@ export class RedisCache {
    */
   static async setForceRefresh(): Promise<void> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，跳过设置强制刷新标记');
+        return;
+      }
+
       await redis.set(CACHE_KEYS.FORCE_REFRESH, 'true', {
         ex: 60, // 1分钟后过期
       });
@@ -225,6 +281,9 @@ export class RedisCache {
    */
   static async shouldForceRefresh(): Promise<boolean> {
     try {
+      if (!redis) {
+        return false;
+      }
       const flag = await redis.get<string>(CACHE_KEYS.FORCE_REFRESH);
       return flag === 'true';
     } catch (error) {
@@ -258,6 +317,11 @@ export class RedisCache {
    */
   static async clearCache(): Promise<void> {
     try {
+      if (!redis) {
+        console.warn('⚠️ Redis客户端未初始化，跳过清除缓存');
+        return;
+      }
+
       await Promise.all([
         redis.del(CACHE_KEYS.SCRAPER_DATA),
         redis.del(CACHE_KEYS.LAST_UPDATE),

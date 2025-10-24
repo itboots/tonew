@@ -50,7 +50,7 @@ export default function Home() {
           setItems(data.data);
           setCurrentPage(1);
         } else {
-          setItems(prev => [...prev, ...data.data]);
+          setItems(prev => [...prev, ...(data.data || [])]);
         }
 
         setTotalItems(data.metadata?.total || data.data.length);
@@ -99,12 +99,13 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchContent();
+    fetchContent(false, 1);
     fetchCacheStatus();
 
     // 每30秒检查一次缓存状态
     const interval = setInterval(fetchCacheStatus, 30000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

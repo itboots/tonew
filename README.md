@@ -106,20 +106,25 @@ vercel
 2. 访问 [Vercel](https://vercel.com) 并登录
 3. 点击 "New Project"
 4. 导入你的 GitHub 仓库
-5. 配置环境变量（可选）：
-   - `TARGET_URL`: 目标爬取网站（默认：https://yucoder.cn/index）
-   - `SCRAPE_TIMEOUT`: 超时时间（默认：5000ms）
+5. 配置环境变量（**必需**）：
+   - `UPSTASH_REDIS_REST_URL`: Upstash Redis REST URL（从 https://console.upstash.com/ 获取）
+   - `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST Token
+   - `TARGET_URL`: 目标爬取网站（可选，默认：https://yucoder.cn）
+   - `SCRAPE_TIMEOUT`: 超时时间（可选，默认：10000ms）
 6. 点击 "Deploy"
 
 部署完成后，你将获得一个 `.vercel.app` 域名。
 
 ## 特性
 
-- 🚀 快速爬取和展示内容
+- 🚀 快速爬取和展示内容（从 YuCoder API 获取热门内容）
 - 🎨 赛博朋克风格 UI
 - 📱 移动端优化
 - ⚡ Serverless 架构
 - 🔄 实时内容刷新
+- 💾 Redis 缓存优化（15分钟缓存）
+- 📊 多数据源聚合（知乎、微博、B站、掘金、CSDN等）
+- 🔥 热度排序和智能评分
 
 ## 项目结构
 

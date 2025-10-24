@@ -26,6 +26,16 @@ export interface ScrapeResponse {
   data?: ValueItem[];
   error?: string;
   timestamp: string;
+  metadata?: {
+    forceRefresh?: boolean;
+    itemCount?: number;
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    hasMore?: boolean;
+    lastUpdate?: string | null;
+    shouldUpdate?: boolean;
+  };
 }
 
 // 错误类型

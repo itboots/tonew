@@ -87,7 +87,34 @@ npm start
 
 ## 部署到 Vercel
 
-### 方式一：通过 Vercel CLI
+### ⚠️ 重要：环境变量配置
+
+**必须配置以下环境变量，否则应用无法正常工作：**
+
+1. **获取 Upstash Redis 凭据**：
+   - 访问 [Upstash Console](https://console.upstash.com/)
+   - 创建一个新的 Redis 数据库（免费版即可）
+   - 在数据库详情页面找到 REST API 部分
+   - 复制 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`
+
+2. **在 Vercel 中配置环境变量**：
+   - 进入项目 → Settings → Environment Variables
+   - 添加以下变量：
+     ```
+     UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
+     UPSTASH_REDIS_REST_TOKEN=your_token_here
+     ```
+
+### 方式一：通过 GitHub（推荐）
+
+1. 将代码推送到 GitHub 仓库
+2. 访问 [Vercel](https://vercel.com) 并登录
+3. 点击 "New Project"
+4. 导入你的 GitHub 仓库
+5. **配置环境变量**（见上方说明）
+6. 点击 "Deploy"
+
+### 方式二：通过 Vercel CLI
 
 ```bash
 # 安装 Vercel CLI
@@ -98,20 +125,43 @@ vercel login
 
 # 部署
 vercel
+
+# 添加环境变量
+vercel env add UPSTASH_REDIS_REST_URL
+vercel env add UPSTASH_REDIS_REST_TOKEN
+
+# 重新部署
+vercel --prod
 ```
 
-### 方式二：通过 GitHub
+### 常见部署问题
 
-1. 将代码推送到 GitHub 仓库
-2. 访问 [Vercel](https://vercel.com) 并登录
-3. 点击 "New Project"
-4. 导入你的 GitHub 仓库
-5. 配置环境变量（**必需**）：
-   - `UPSTASH_REDIS_REST_URL`: Upstash Redis REST URL（从 https://console.upstash.com/ 获取）
-   - `UPSTASH_REDIS_REST_TOKEN`: Upstash Redis REST Token
-   - `TARGET_URL`: 目标爬取网站（可选，默认：https://yucoder.cn）
-   - `SCRAPE_TIMEOUT`: 超时时间（可选，默认：10000ms）
-6. 点击 "Deploy"
+#### 问题 1：页面显示空白或"数据为空"
+
+**原因**：环境变量未配置或配置错误
+
+**解决方案**：
+1. 检查 Vercel 项目设置中的环境变量
+2. 确保变量名完全匹配（区分大小写）
+3. 验证 Redis URL 和 Token 是否正确
+4. 重新部署项目
+
+#### 问题 2：首次访问很慢
+
+**原因**：Serverless 冷启动 + 首次数据获取
+
+**解决方案**：
+- 这是正常现象，后续访问会快很多
+- 数据会缓存 15 分钟，提升性能
+
+#### 问题 3：Redis 连接失败
+
+**原因**：Redis 凭据不正确或网络问题
+
+**解决方案**：
+1. 在 Upstash Console 验证凭据
+2. 确保 Redis 数据库处于活动状态
+3. 检查 Vercel 部署日志中的错误信息
 
 部署完成后，你将获得一个 `.vercel.app` 域名。
 

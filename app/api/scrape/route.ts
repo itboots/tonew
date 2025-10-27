@@ -24,8 +24,12 @@ export async function GET(request: NextRequest) {
       const scraper = new ScraperService();
       const allItems = await scraper.scrapeAndProcess(true);
 
-      // 存储到Redis
-      await RedisCache.storeData(allItems, true);
+      // 存储到Redis（如果可用）
+      try {
+        await RedisCache.storeData(allItems, true);
+      } catch (redisError) {
+        console.warn('⚠️ Redis存储失败，但继续返回数据:', redisError);
+      }
 
       // 分页处理
       const startIndex = (page - 1) * pageSize;
@@ -42,8 +46,12 @@ export async function GET(request: NextRequest) {
         const scraper = new ScraperService();
         const allItems = await scraper.scrapeAndProcess(false);
 
-        // 存储到Redis
-        await RedisCache.storeData(allItems, false);
+        // 存储到Redis（如果可用）
+        try {
+          await RedisCache.storeData(allItems, false);
+        } catch (redisError) {
+          console.warn('⚠️ Redis存储失败，但继续返回数据:', redisError);
+        }
 
         // 分页处理
         const startIndex = (page - 1) * pageSize;
@@ -55,9 +63,31 @@ export async function GET(request: NextRequest) {
         // 普通刷新：从Redis读取分页数据
         console.log('📖 普通刷新：从Redis读取数据');
         const redisData = await RedisCache.getPagedData(page, pageSize);
-        paginatedItems = redisData.items;
-        total = redisData.total;
-        lastUpdate = redisData.lastUpdate;
+        
+        // 如果Redis没有数据，直接获取新数据
+        if (redisData.items.length === 0) {
+          console.log('⚠️ Redis无数据，直接获取新数据');
+          const scraper = new ScraperService();
+          const allItems = await scraper.scrapeAndProcess(false);
+          
+          // 尝试存储到Redis
+          try {
+            await RedisCache.storeData(allItems, false);
+          } catch (redisError) {
+            console.warn('⚠️ Redis存储失败:', redisError);
+          }
+          
+          // 分页处理
+          const startIndex = (page - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          paginatedItems = allItems.slice(startIndex, endIndex);
+          total = allItems.length;
+          lastUpdate = new Date().toISOString();
+        } else {
+          paginatedItems = redisData.items;
+          total = redisData.total;
+          lastUpdate = redisData.lastUpdate;
+        }
       }
     }
 

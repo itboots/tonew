@@ -218,6 +218,7 @@ export class ScraperService {
 
   private parseYuCoderData(apiData: any[]): ValueItem[] {
     const valueItems: ValueItem[] = [];
+    const usedIds = new Set<string>();
 
     // 处理所有数据源，不限制类型
     apiData.forEach(source => {
@@ -225,8 +226,20 @@ export class ScraperService {
         // 获取每个源的所有数据，不限制数量
         source.data.forEach((item: any, index: number) => {
           if (item.title && item.url) {
+            // 生成唯一ID，包含时间戳和随机数确保唯一性
+            let uniqueId = this.generateUniqueId(source.typeName, item.url, index);
+
+            // 如果ID已存在，添加随机后缀直到唯一
+            let suffix = 0;
+            while (usedIds.has(uniqueId)) {
+              uniqueId = `${this.generateUniqueId(source.typeName, item.url, index)}_${suffix}`;
+              suffix++;
+            }
+
+            usedIds.add(uniqueId);
+
             const valueItem: ValueItem = {
-              id: `${source.typeName}_${item.url}_${index}`,
+              id: uniqueId,
               title: item.title,
               link: item.url,
               description: this.generateDescription(item, source.typeName),
@@ -247,6 +260,23 @@ export class ScraperService {
 
     // 按重要性排序
     return valueItems.sort((a, b) => b.importance - a.importance);
+  }
+
+  private generateUniqueId(sourceType: string, url: string, index: number): string {
+    // 使用更复杂的ID生成算法，包含时间戳和哈希
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    const hashInput = `${sourceType}_${url}_${index}_${timestamp}_${random}`;
+
+    // 简单哈希函数
+    let hash = 0;
+    for (let i = 0; i < hashInput.length; i++) {
+      const char = hashInput.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+
+    return Math.abs(hash).toString(36);
   }
 
   private generateDescription(item: any, sourceType: string): string {

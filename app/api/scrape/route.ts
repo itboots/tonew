@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ScraperService } from '@/lib/scraper';
 import { ScrapeResponse, ErrorType } from '@/types';
 import { RedisCache } from '@/lib/redis';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
+const DISMISSED_ITEMS_KEY = 'dismissed_items';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +16,22 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
     console.log(`🔄 API 请求 - 强制刷新: ${forceRefresh}, 页码: ${page}, 每页: ${pageSize}`);
+
+    // 获取已滑掉的条目ID列表
+    let dismissedIds: string[] = [];
+    try {
+      const ids = await redis.smembers(DISMISSED_ITEMS_KEY);
+      dismissedIds = (ids || []) as string[];
+      console.log(`🚫 已滑掉的条目数量: ${dismissedIds.length}`);
+    } catch (error) {
+      console.warn('⚠️ 获取已滑掉条目失败:', error);
+    }
+
+    // 过滤函数：移除已滑掉的条目
+    const filterDismissed = (items: any[]) => {
+      if (dismissedIds.length === 0) return items;
+      return items.filter(item => !dismissedIds.includes(item.id));
+    };
 
     let paginatedItems: any[] = [];
     let total = 0;
@@ -24,9 +44,13 @@ export async function GET(request: NextRequest) {
       const scraper = new ScraperService();
       const allItems = await scraper.scrapeAndProcess(true);
 
+      // 过滤已滑掉的条目
+      const filteredItems = filterDismissed(allItems);
+      console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
+
       // 存储到Redis（如果可用）
       try {
-        await RedisCache.storeData(allItems, true);
+        await RedisCache.storeData(filteredItems, true);
       } catch (redisError) {
         console.warn('⚠️ Redis存储失败，但继续返回数据:', redisError);
       }
@@ -34,8 +58,8 @@ export async function GET(request: NextRequest) {
       // 分页处理
       const startIndex = (page - 1) * pageSize;
       const endIndex = startIndex + pageSize;
-      paginatedItems = allItems.slice(startIndex, endIndex);
-      total = allItems.length;
+      paginatedItems = filteredItems.slice(startIndex, endIndex);
+      total = filteredItems.length;
       lastUpdate = new Date().toISOString();
     } else {
       // 检查是否需要自动更新
@@ -46,9 +70,13 @@ export async function GET(request: NextRequest) {
         const scraper = new ScraperService();
         const allItems = await scraper.scrapeAndProcess(false);
 
+        // 过滤已滑掉的条目
+        const filteredItems = filterDismissed(allItems);
+        console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
+
         // 存储到Redis（如果可用）
         try {
-          await RedisCache.storeData(allItems, false);
+          await RedisCache.storeData(filteredItems, false);
         } catch (redisError) {
           console.warn('⚠️ Redis存储失败，但继续返回数据:', redisError);
         }
@@ -56,8 +84,8 @@ export async function GET(request: NextRequest) {
         // 分页处理
         const startIndex = (page - 1) * pageSize;
         const endIndex = startIndex + pageSize;
-        paginatedItems = allItems.slice(startIndex, endIndex);
-        total = allItems.length;
+        paginatedItems = filteredItems.slice(startIndex, endIndex);
+        total = filteredItems.length;
         lastUpdate = new Date().toISOString();
       } else {
         // 普通刷新：从Redis读取分页数据
@@ -70,9 +98,13 @@ export async function GET(request: NextRequest) {
           const scraper = new ScraperService();
           const allItems = await scraper.scrapeAndProcess(false);
           
+          // 过滤已滑掉的条目
+          const filteredItems = filterDismissed(allItems);
+          console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
+          
           // 尝试存储到Redis
           try {
-            await RedisCache.storeData(allItems, false);
+            await RedisCache.storeData(filteredItems, false);
           } catch (redisError) {
             console.warn('⚠️ Redis存储失败:', redisError);
           }
@@ -80,8 +112,8 @@ export async function GET(request: NextRequest) {
           // 分页处理
           const startIndex = (page - 1) * pageSize;
           const endIndex = startIndex + pageSize;
-          paginatedItems = allItems.slice(startIndex, endIndex);
-          total = allItems.length;
+          paginatedItems = filteredItems.slice(startIndex, endIndex);
+          total = filteredItems.length;
           lastUpdate = new Date().toISOString();
         } else {
           paginatedItems = redisData.items;

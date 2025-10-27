@@ -20,9 +20,38 @@ body {
   background-color: var(--cyber-bg-dark);
   color: var(--cyber-text);
   font-family: 'Orbitron', sans-serif;
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* 纯色背景，去掉网格 */
+/* 赛博网格背景 */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(255, 0, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 255, 0.02) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
+  pointer-events: none;
+  z-index: 0;
+  animation: grid-scroll 20s linear infinite;
+}
+
+@keyframes grid-scroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100px);
+  }
+}
 
 /* 赛博背景渐变效果 */
 body::after {
@@ -33,12 +62,13 @@ body::after {
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(circle at 20% 80%, rgba(0, 255, 255, 0.4) 0%, transparent 60%),
-    radial-gradient(circle at 80% 20%, rgba(255, 0, 255, 0.4) 0%, transparent 60%),
-    radial-gradient(circle at 40% 40%, rgba(255, 0, 170, 0.3) 0%, transparent 70%);
+    radial-gradient(circle at 20% 80%, rgba(0, 255, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(123, 44, 191, 0.1) 0%, transparent 60%);
   pointer-events: none;
-  z-index: -1;
-  opacity: 0.8;
+  z-index: 0;
+  opacity: 1;
+  animation: glow-pulse 8s ease-in-out infinite;
 }
 
 @keyframes glow-pulse {

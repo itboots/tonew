@@ -3,9 +3,10 @@ import ContentCard from './ContentCard';
 
 interface ContentListProps {
   items: ValueItem[];
+  onDismiss?: (itemId: string) => void;
 }
 
-export default function ContentList({ items }: ContentListProps) {
+export default function ContentList({ items, onDismiss }: ContentListProps) {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
@@ -19,9 +20,13 @@ export default function ContentList({ items }: ContentListProps) {
   }
 
   return (
-    <div className="space-y-0">
+    <div className="space-y-3">
       {items.map((item) => (
-        <ContentCard key={item.id} item={item} />
+        <ContentCard
+          key={item.id}
+          item={item}
+          onDismiss={onDismiss}
+        />
       ))}
     </div>
   );

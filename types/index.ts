@@ -9,6 +9,9 @@ export interface ValueItem {
   importance: number;
   hotness?: number; // 原始热度数据 (followerCount)
   scrapedAt: string;
+  fullContent?: string; // 展开时显示的完整内容
+  isExpanded?: boolean; // 展开状态
+  expandedHeight?: number; // 展开后的高度
 }
 
 // 原始条目

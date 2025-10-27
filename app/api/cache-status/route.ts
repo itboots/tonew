@@ -10,12 +10,12 @@ export async function GET() {
       data: stats,
       timestamp: new Date().toISOString(),
     });
-  } catch (error: any) {
-    console.error('❌ 获取缓存状态失败:', error);
+  } catch (error) {
+    console.error('获取缓存状态失败:', error);
 
     return NextResponse.json({
       success: false,
-      error: error.message,
+      error: '获取缓存状态失败',
       timestamp: new Date().toISOString(),
     }, { status: 500 });
   }

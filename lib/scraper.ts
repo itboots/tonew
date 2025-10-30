@@ -1,179 +1,36 @@
-import * as cheerio from 'cheerio';
-import { RawItem, ValueItem, ErrorType } from '@/types';
-import { ContentParser } from './parser';
+import { ValueItem, ErrorType } from '@/types';
 import { getDemoData } from './demo-data';
 
 export class ScraperService {
-  private targetUrl: string;
   private timeout: number;
 
-  constructor(targetUrl: string = 'https://yucoder.cn', timeout: number = 10000) {
-    this.targetUrl = targetUrl;
+  constructor(timeout: number = 10000) {
     this.timeout = timeout;
   }
 
-  // 尝试多个可能的URL
-  private async tryMultipleUrls(): Promise<string> {
-    const urls = [
-      'https://yucoder.cn',
-      'https://yucoder.cn/',
-      'https://yucoder.cn/index',
-      'https://yucoder.cn/home',
-      'https://yucoder.cn/blog',
-      'https://yucoder.cn/posts'
-    ];
-
-    for (const url of urls) {
-      try {
-        console.log(`尝试访问: ${url}`);
-        const html = await this.scrapeWebsite(url);
-        console.log(`从 ${url} 获取到HTML，长度: ${html.length}`);
-
-        if (html.length > 1000) { // 降低内容长度要求
-          console.log(`使用URL: ${url}`);
-          return html;
-        }
-      } catch (error: any) {
-        console.log(`访问 ${url} 失败:`, error.message);
-        continue;
-      }
-    }
-
-    throw new Error('所有URL都无法访问或内容为空');
-  }
-
-  async scrapeWebsite(url: string = this.targetUrl): Promise<string> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.text();
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
-        throw new Error(ErrorType.TIMEOUT_ERROR);
-      }
-      throw new Error(ErrorType.NETWORK_ERROR);
-    }
-  }
-
-  async parseContent(html: string): Promise<RawItem[]> {
-    try {
-      const parser = new ContentParser();
-      return parser.parse(html);
-    } catch (error) {
-      console.error('Parse error:', error);
-      throw new Error(ErrorType.PARSE_ERROR);
-    }
-  }
-
-  async filterValueItems(items: RawItem[]): Promise<ValueItem[]> {
-    const rules = {
-      minTitleLength: 2, // 降低最小标题长度
-      minDescriptionLength: 5, // 降低最小描述长度
-      requireLink: true,
-      excludeKeywords: ['广告', 'AD', 'advertisement', '广告', '推广'],
-      priorityKeywords: ['技术', '开发', '编程', 'AI', '前端', '后端', 'JavaScript', 'Python', 'React', 'Vue', '文章', '博客', '教程', '项目'],
-    };
-
-    const valueItems: ValueItem[] = [];
-
-    for (const item of items) {
-      // 基本验证 - 更宽松的条件
-      if (!item.title || item.title.length < rules.minTitleLength) {
-        console.log('跳过条目 - 标题太短或为空:', item.title);
-        continue;
-      }
-
-      // 描述可以为空，但如果有的话要满足最小长度
-      if (item.description && item.description.length < rules.minDescriptionLength) {
-        console.log('跳过条目 - 描述太短:', item.description);
-        continue;
-      }
-
-      if (rules.requireLink && (!item.link || item.link === '#')) {
-        console.log('跳过条目 - 缺少有效链接:', item.link);
-        continue;
-      }
-
-      // 排除关键词检查
-      const hasExcludedKeyword = rules.excludeKeywords.some(keyword =>
-        item.title.includes(keyword) || (item.description && item.description.includes(keyword))
-      );
-      if (hasExcludedKeyword) {
-        console.log('跳过条目 - 包含排除关键词:', item.title);
-        continue;
-      }
-
-      // 计算重要性评分
-      let importance = 5; // 基础分
-
-      // 优先关键词加分
-      const priorityMatches = rules.priorityKeywords.filter(keyword =>
-        item.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        (item.description && item.description.toLowerCase().includes(keyword.toLowerCase()))
-      );
-      importance += Math.min(priorityMatches.length * 0.5, 3);
-
-      // 内容长度加分
-      if (item.description && item.description.length > 50) importance += 0.5;
-      if (item.description && item.description.length > 100) importance += 0.5;
-
-      importance = Math.min(importance, 10);
-
-      const valueItem: ValueItem = {
-        id: this.generateId(item),
-        title: item.title,
-        link: item.link,
-        description: item.description || `点击查看: ${item.title}`, // 为空描述提供默认值
-        publishDate: item.date,
-        importance: Math.round(importance * 10) / 10,
-        scrapedAt: new Date().toISOString(),
-      };
-
-      console.log('添加有价值条目:', valueItem.title);
-      valueItems.push(valueItem);
-    }
-
-    // 按重要性排序
-    return valueItems.sort((a, b) => b.importance - a.importance);
-  }
-
-  private generateId(item: RawItem): string {
-    const str = `${item.title}-${item.link}`;
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
-  }
-
-  async scrapeAndProcess(_forceRefresh: boolean = false): Promise<ValueItem[]> {
+  
+  async scrapeAndProcess(_forceRefresh: boolean = false, category?: string): Promise<ValueItem[]> {
     const startTime = Date.now();
 
     try {
-      // 直接获取新数据（不再使用本地缓存）
+      // 对于分类过滤，直接获取新数据并绕过缓存以确保最新和按热度排序
+      if (category) {
+        console.log('🔍 分类过滤模式：直接从API获取最新数据并按热度排序');
+        const freshData = await this.fetchFromYuCoderAPI();
+
+        console.log(`🔍 过滤分类: ${category}`);
+        const filteredData = freshData.filter(item => item.category === category);
+        console.log(`✅ 过滤后剩余 ${filteredData.length} / ${freshData.length} 条`);
+
+        // 按热度排序而不是重要性
+        const sortedByHotness = filteredData.sort((a, b) => (b.hotness || 0) - (a.hotness || 0));
+
+        const duration = Date.now() - startTime;
+        console.log(`🔥 分类数据按热度排序完成 (${sortedByHotness.length} 条, 耗时: ${duration}ms)`);
+        return sortedByHotness;
+      }
+
+      // 非分类模式：正常获取数据（按重要性排序）
       console.log('🌐 从API获取新数据...');
       const freshData = await this.fetchFromYuCoderAPI();
 

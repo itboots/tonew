@@ -8,6 +8,10 @@ import CyberButton from '@/components/CyberButton';
 import HologramHUD from '@/components/HologramHUD';
 import DataStream from '@/components/DataStream';
 import HologramPanel from '@/components/HologramPanel';
+import UserHeader from '@/components/UserHeader';
+import NotificationCenter from '@/components/NotificationCenter';
+import CategoryFilter from '@/components/CategoryFilter';
+import Link from 'next/link';
 
 interface CacheStatus {
   hasData: boolean;
@@ -27,6 +31,8 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -40,6 +46,21 @@ export default function Home() {
       }
     } catch (error) {
       console.error('获取缓存状态失败:', error);
+    }
+  }, []);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await fetch('/api/scrape?page=1&pageSize=258');
+      const data: ScrapeResponse = await response.json();
+
+      if (data.success && data.data) {
+        const categories = [...new Set(data.data.map(item => item.category).filter(Boolean))];
+        setAvailableCategories(categories.sort());
+        console.log('📋 获取到分类列表:', categories);
+      }
+    } catch (error) {
+      console.error('获取分类列表失败:', error);
     }
   }, []);
 
@@ -58,6 +79,10 @@ export default function Home() {
 
       if (forceRefresh) {
         params.append('refresh', 'true');
+      }
+
+      if (selectedCategory) {
+        params.append('category', encodeURIComponent(selectedCategory));
       }
 
       const url = `/api/scrape?${params.toString()}`;
@@ -90,12 +115,22 @@ export default function Home() {
         setRefreshing(false);
       }
     }
-  }, [fetchCacheStatus]);
+  }, [fetchCacheStatus, selectedCategory]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchContent(true, 1);
   };
+
+  // 处理分类过滤
+  const handleCategoryChange = useCallback((category: string | null) => {
+    console.log(`🔄 切换分类: ${category || '全部'}`);
+    setSelectedCategory(category);
+    setCurrentPage(1); // 重置页码
+    setHasMore(true); // 重置加载更多状态
+    // 立即获取新数据
+    fetchContent(false, 1);
+  }, [fetchContent]);
 
   // 处理滑动删除
   const handleDismiss = useCallback(async (itemId: string) => {
@@ -152,6 +187,7 @@ export default function Home() {
   }, [currentPage, fetchContent, hasMore, loading]);
 
   useEffect(() => {
+    fetchCategories(); // 获取分类列表
     fetchContent(false, 1);
     fetchCacheStatus();
 
@@ -208,7 +244,7 @@ export default function Home() {
       window.removeEventListener('focus', handleWindowFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchCategories]);
 
   useEffect(() => {
     if (!hasMore) return;
@@ -243,13 +279,33 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-3 sm:p-4 lg:p-6 relative">
-      {/* JARVIS全息HUD效果 */}
-      <HologramHUD />
-      
-      {/* 数据流效果 */}
-      <DataStream />
-      
-      <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
+        {/* JARVIS全息HUD效果 */}
+        <HologramHUD />
+
+        {/* 数据流效果 */}
+        <DataStream />
+
+        <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
+          {/* Navigation Header */}
+          <nav className="flex items-center justify-between mb-6 relative z-20">
+            <div className="flex items-center space-x-6">
+              <h1 className="text-2xl font-bold text-cyan-400 tracking-wider">
+                CONTENT MONITOR
+              </h1>
+              <div className="hidden sm:flex items-center space-x-4">
+                <Link href="/" className="text-cyan-300 hover:text-cyan-400 transition-colors">
+                  Dashboard
+                </Link>
+                <Link href="/favorites" className="text-cyan-300 hover:text-cyan-400 transition-colors">
+                  Favorites
+                </Link>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <NotificationCenter />
+              <UserHeader />
+            </div>
+          </nav>
         {/* 主容器霓虹边框 */}
         <div 
           className="absolute inset-0 rounded-lg pointer-events-none animate-pulse"
@@ -337,6 +393,14 @@ export default function Home() {
             <p className="mt-1">系统每分钟自动更新缓存 • 每页显示20条</p>
           </div>
         </header>
+
+        {/* 分类过滤器 */}
+        <CategoryFilter
+          categories={availableCategories}
+          selectedCategory={selectedCategory}
+          onCategoryChange={handleCategoryChange}
+          isLoading={loading}
+        />
 
         {/* 内容区域 */}
         <div className="relative z-10">

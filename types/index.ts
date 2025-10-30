@@ -75,3 +75,57 @@ export interface FilterRules {
   excludeKeywords: string[];
   priorityKeywords: string[];
 }
+
+// 用户相关类型
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  createdAt?: string;
+  preferences?: UserPreferences;
+}
+
+export interface UserPreferences {
+  categories: string[];
+  notifications: boolean;
+  theme: 'cyberpunk' | 'dark' | 'light';
+  autoRefresh: boolean;
+}
+
+// 收藏相关
+export interface FavoriteItem extends ValueItem {
+  userId: string;
+  favoritedAt: string;
+  tags?: string[];
+  notes?: string;
+}
+
+// 标签相关
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  userId: string;
+  createdAt: string;
+  itemCount?: number;
+}
+
+// 通知相关
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'new_content' | 'favorite_tag' | 'system';
+  title: string;
+  message: string;
+  data?: any;
+  read: boolean;
+  createdAt: string;
+}
+
+// API 响应扩展
+export interface UserApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  timestamp: string;
+}

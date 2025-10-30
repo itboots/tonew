@@ -46,6 +46,9 @@ const redis = redisConfig ? new Redis({
   token: redisConfig.token,
 }) : null;
 
+// Export the redis client for use in other modules
+export const client = redis;
+
 // 检查Redis客户端是否可用
 export const isRedisAvailable = (): boolean => {
   return redis !== null;

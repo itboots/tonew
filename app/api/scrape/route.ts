@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     const forceRefresh = searchParams.get('refresh') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
+    const category = searchParams.get('category'); // 新增分类过滤参数
+    const decodedCategory = category ? decodeURIComponent(category) : null; // 解码URL编码的中文字符
 
-    console.log(`🔄 API 请求 - 强制刷新: ${forceRefresh}, 页码: ${page}, 每页: ${pageSize}`);
+    console.log(`🔄 API 请求 - 强制刷新: ${forceRefresh}, 页码: ${page}, 每页: ${pageSize}, 分类: ${decodedCategory || '全部'}`);
 
     // 获取已滑掉的条目ID列表
     let dismissedIds: string[] = [];
@@ -33,13 +35,30 @@ export async function GET(request: NextRequest) {
       return items.filter(item => !dismissedIds.includes(item.id));
     };
 
+    
     let paginatedItems: any[] = [];
     let total = 0;
     let lastUpdate = null;
     let shouldUpdate = false;
 
-    // 检查是否需要强制刷新或自动更新
-    if (forceRefresh) {
+    // 分类过滤时绕过Redis，直接获取最新数据并按热度排序
+    if (decodedCategory) {
+      console.log(`🔥 分类过滤模式：绕过Redis，直接获取 "${decodedCategory}" 最新数据并按热度排序`);
+      const scraper = new ScraperService();
+      const allItems = await scraper.scrapeAndProcess(false, decodedCategory);
+
+      // 过滤已滑掉的条目
+      const filteredItems = filterDismissed(allItems);
+      console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
+
+      // 分页处理
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize;
+      paginatedItems = filteredItems.slice(startIndex, endIndex);
+      total = filteredItems.length;
+      lastUpdate = new Date().toISOString();
+      shouldUpdate = false; // 分类过滤不需要更新标志
+    } else if (forceRefresh) {
       console.log('🔄 强制刷新：从API获取数据');
       const scraper = new ScraperService();
       const allItems = await scraper.scrapeAndProcess(true);
@@ -62,7 +81,7 @@ export async function GET(request: NextRequest) {
       total = filteredItems.length;
       lastUpdate = new Date().toISOString();
     } else {
-      // 检查是否需要自动更新
+      // 检查是否需要自动更新（仅限非分类模式）
       shouldUpdate = await RedisCache.shouldAutoUpdate();
 
       if (shouldUpdate) {
@@ -91,24 +110,24 @@ export async function GET(request: NextRequest) {
         // 普通刷新：从Redis读取分页数据
         console.log('📖 普通刷新：从Redis读取数据');
         const redisData = await RedisCache.getPagedData(page, pageSize);
-        
+
         // 如果Redis没有数据，直接获取新数据
         if (redisData.items.length === 0) {
           console.log('⚠️ Redis无数据，直接获取新数据');
           const scraper = new ScraperService();
           const allItems = await scraper.scrapeAndProcess(false);
-          
+
           // 过滤已滑掉的条目
           const filteredItems = filterDismissed(allItems);
           console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
-          
+
           // 尝试存储到Redis
           try {
             await RedisCache.storeData(filteredItems, false);
           } catch (redisError) {
             console.warn('⚠️ Redis存储失败:', redisError);
           }
-          
+
           // 分页处理
           const startIndex = (page - 1) * pageSize;
           const endIndex = startIndex + pageSize;
@@ -116,6 +135,7 @@ export async function GET(request: NextRequest) {
           total = filteredItems.length;
           lastUpdate = new Date().toISOString();
         } else {
+          // 从Redis获取数据（仅限非分类模式）
           paginatedItems = redisData.items;
           total = redisData.total;
           lastUpdate = redisData.lastUpdate;

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { ValueItem } from '@/types';
+import FavoriteButton from './FavoriteButton';
 
 interface ContentCardProps {
   item: ValueItem;
@@ -331,17 +332,23 @@ export default function ContentCard({ item, onDismiss }: ContentCardProps) {
               : `radial-gradient(circle at 25% 25%, ${colors.text.replace('text-', 'rgba(').replace('300', ' 251 207 232, 0.04)').replace('violet', ' 196 181, 253, 0.04)').replace('sky', ' 125 211, 252, 0.04)').replace('teal', ' 94 234, 212, 0.04)').replace('amber', ' 251 191, 36, 0.04)').replace('slate', ' 148 163, 184, 0.04)')}, transparent 55%)`,
           }}
         />
-        {/* 重要性指示器 */}
-        <div className="absolute top-2 right-2 flex items-center gap-1">
-          {[...Array(Math.round(item.importance))].map((_, i) => (
-            <div
-              key={i}
-              className={`w-1 h-1 ${importanceColor} rounded-full`}
-              style={{
-                boxShadow: `0 0 ${2 + i}px currentColor`,
-              }}
-            ></div>
-          ))}
+        {/* 顶部操作区域 */}
+        <div className="absolute top-2 right-2 flex items-center gap-2">
+          {/* 收藏按钮 */}
+          <FavoriteButton item={item} />
+
+          {/* 重要性指示器 */}
+          <div className="flex items-center gap-1">
+            {[...Array(Math.round(item.importance))].map((_, i) => (
+              <div
+                key={i}
+                className={`w-1 h-1 ${importanceColor} rounded-full`}
+                style={{
+                  boxShadow: `0 0 ${2 + i}px currentColor`,
+                }}
+              ></div>
+            ))}
+          </div>
         </div>
 
         {/* 标题 */}

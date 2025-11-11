@@ -39,6 +39,44 @@
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
 }
 
+/* 赛博朋克主题 */
+[data-theme="cyberpunk"] {
+  /* 主色调 */
+  --apple-blue: #00FFFF;
+  --apple-blue-light: #5DFDCB;
+  --apple-green: #39FF14;
+  --apple-red: #FF0055;
+  --apple-orange: #FF6600;
+  --apple-yellow: #FFFF00;
+  --apple-purple: #B026FF;
+  --apple-pink: #FF1493;
+  --apple-teal: #00FFFF;
+
+  /* 灰度系统 */
+  --gray-1: #1a1a2e;
+  --gray-2: #16213e;
+  --gray-3: #0f3460;
+  --gray-4: #53354a;
+  --gray-5: #903749;
+  --gray-6: #e84a5f;
+
+  /* 背景 */
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #000000;
+  --bg-tertiary: #1a1a2e;
+
+  /* 文本 */
+  --text-primary: #00FFFF;
+  --text-secondary: #FFFFFF;
+  --text-tertiary: #AEAEB2;
+
+  /* 赛博朋克阴影 (霓虹光效) */
+  --shadow-sm: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.2);
+  --shadow-md: 0 0 10px rgba(0, 255, 255, 0.6), 0 0 20px rgba(0, 255, 255, 0.3);
+  --shadow-lg: 0 0 15px rgba(0, 255, 255, 0.7), 0 0 30px rgba(0, 255, 255, 0.4);
+  --shadow-xl: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.5);
+}
+
 /* 暗色模式 */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -329,10 +367,18 @@ body {
 
   .apple-card {
     border-radius: 12px;
+    margin-bottom: 8px;
   }
 
   .apple-card-large {
     border-radius: 16px;
+  }
+
+  /* 移动端按钮最小触摸区域 44x44px (Apple HIG) */
+  .apple-button,
+  .apple-button-secondary {
+    min-height: 44px;
+    padding: 12px 20px;
   }
 }
 
@@ -344,6 +390,19 @@ body {
 
   .apple-button:active {
     transform: scale(0.95);
+  }
+
+  /* 触摸设备上增加点击区域 */
+  .apple-badge,
+  button,
+  a {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+
+  /* 改进滚动性能 */
+  * {
+    -webkit-overflow-scrolling: touch;
   }
 }
 

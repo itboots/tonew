@@ -3,8 +3,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import CyberButton from "@/components/CyberButton"
-import HologramPanel from "@/components/HologramPanel"
 import { useUser } from "@/contexts/UserContext"
 
 export default function SignInPage() {
@@ -32,133 +30,159 @@ export default function SignInPage() {
       if (result.success) {
         router.push("/")
       } else {
-        setError(result.error || "Login failed")
+        setError(result.error || "登录失败")
       }
     } catch (error) {
-      setError("An error occurred")
+      setError("发生错误，请重试")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-950 via-black to-purple-950" />
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      {/* Sign In Form */}
-      <div className="relative z-10 w-full max-w-md">
-        <HologramPanel className="p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-cyan-400 mb-2 tracking-wider">
-              {isSignUp ? "ACCESS GRANTED" : "SYSTEM LOGIN"}
-            </h1>
-            <p className="text-gray-400 text-sm">
-              {isSignUp ? "Create new user credentials" : "Enter your credentials to access the system"}
-            </p>
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      {/* 登录表单 */}
+      <div className="w-full max-w-md">
+        {/* Logo 和标题 */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl" style={{
+            backgroundColor: 'var(--apple-blue)'
+          }}>
+            📱
           </div>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
+            {isSignUp ? "创建账号" : "欢迎回来"}
+          </h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {isSignUp ? "注册新账号开始使用" : "登录以继续浏览"}
+          </p>
+        </div>
 
-          {/* Error Message */}
+        {/* 登录卡片 */}
+        <div className="apple-card-large p-6 sm:p-8">
+          {/* 错误提示 */}
           {error && (
-            <div className="mb-6 p-3 border border-red-500 bg-red-950/50 rounded-lg">
-              <p className="text-red-400 text-sm text-center">{error}</p>
+            <div className="mb-6 p-3 rounded-xl" style={{
+              backgroundColor: 'rgba(255, 59, 48, 0.1)',
+              border: '1px solid var(--apple-red)'
+            }}>
+              <p className="text-sm text-center" style={{ color: 'var(--apple-red)' }}>{error}</p>
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 表单 */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
               <div>
-                <label className="block text-cyan-400 text-sm font-medium mb-2">
-                  User ID
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  用户名
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-100 placeholder-cyan-800 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20 transition-all"
-                  placeholder="Enter your user ID"
-                  required={!isSignUp}
+                  className="apple-input w-full"
+                  placeholder="输入你的用户名"
+                  required={isSignUp}
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-cyan-400 text-sm font-medium mb-2">
-                Email Address
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                邮箱地址
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-100 placeholder-cyan-800 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20 transition-all"
-                placeholder="user@system.com"
+                className="apple-input w-full"
+                placeholder="user@example.com"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-cyan-400 text-sm font-medium mb-2">
-                Password
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                密码
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-black/50 border border-cyan-500/30 rounded-lg text-cyan-100 placeholder-cyan-800 focus:outline-none focus:border-cyan-400 focus:shadow-lg focus:shadow-cyan-500/20 transition-all"
+                className="apple-input w-full"
                 placeholder="••••••••"
                 required
               />
             </div>
 
-            <CyberButton
+            <button
               type="submit"
               disabled={isLoading}
-              className="w-full"
+              className="w-full apple-button py-3 text-base font-semibold mt-6"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
                   </svg>
-                  AUTHENTICATING...
+                  {isSignUp ? "注册中..." : "登录中..."}
                 </span>
               ) : (
-                <span>{isSignUp ? "CREATE ACCOUNT" : "ACCESS SYSTEM"}</span>
+                <span>{isSignUp ? "注册" : "登录"}</span>
               )}
-            </CyberButton>
+            </button>
           </form>
 
-          {/* Toggle Sign In/Up */}
+          {/* 切换登录/注册 */}
           <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              {isSignUp ? "已有账号？" : "还没有账号？"}{" "}
               <button
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-cyan-400 hover:text-cyan-300 underline transition-colors"
+                className="font-medium transition-colors"
+                style={{ color: 'var(--apple-blue)' }}
               >
-                {isSignUp ? "SIGN IN" : "SIGN UP"}
+                {isSignUp ? "立即登录" : "立即注册"}
               </button>
             </p>
           </div>
+        </div>
 
-          {/* Back to Home */}
-          <div className="mt-4 text-center">
-            <Link
-              href="/"
-              className="text-purple-400 hover:text-purple-300 text-sm underline transition-colors"
-            >
-              ← Back to Main System
-            </Link>
-          </div>
-        </HologramPanel>
+        {/* 返回首页 */}
+        <div className="mt-6 text-center">
+          <Link
+            href="/"
+            className="text-sm font-medium transition-colors inline-flex items-center gap-1"
+            style={{ color: 'var(--apple-blue)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            返回首页
+          </Link>
+        </div>
+
+        {/* 演示提示 */}
+        <div className="mt-6 p-4 rounded-2xl" style={{
+          backgroundColor: 'var(--gray-1)',
+          border: '1px solid var(--gray-3)'
+        }}>
+          <p className="text-xs text-center" style={{ color: 'var(--text-secondary)' }}>
+            💡 提示：这是演示环境，输入任意邮箱和密码即可登录
+          </p>
+        </div>
       </div>
     </div>
   )

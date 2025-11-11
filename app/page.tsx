@@ -7,6 +7,7 @@ import ContentList from '@/components/ContentList';
 import UserHeader from '@/components/UserHeader';
 import NotificationCenter from '@/components/NotificationCenter';
 import CategoryFilter from '@/components/CategoryFilter';
+import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
 
 interface CacheStatus {
@@ -31,6 +32,38 @@ export default function Home() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
+
+  // 搜索相关状态
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredItems, setFilteredItems] = useState<ValueItem[]>([]);
+
+  // 下拉刷新相关状态
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const touchStartY = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // 搜索过滤
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredItems(items);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = items.filter(item =>
+      item.title.toLowerCase().includes(query) ||
+      (item.description && item.description.toLowerCase().includes(query)) ||
+      (item.category && item.category.toLowerCase().includes(query))
+    );
+
+    setFilteredItems(filtered);
+  }, [searchQuery, items]);
+
+  // 搜索处理
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   const fetchCacheStatus = useCallback(async () => {
     try {
@@ -115,6 +148,43 @@ export default function Home() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchContent(true, 1);
+  };
+
+  // 下拉刷新处理
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (refreshing || loading) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    // 只在顶部且向下拉时响应
+    if (window.scrollY === 0 && deltaY > 0) {
+      setIsPulling(true);
+      // 添加阻尼效果
+      const damping = 0.5;
+      const distance = Math.min(deltaY * damping, 120);
+      setPullDistance(distance);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling) return;
+
+    const threshold = 60;
+    if (pullDistance > threshold) {
+      // 触发刷新
+      await handleRefresh();
+    }
+
+    setIsPulling(false);
+    setPullDistance(0);
+    touchStartY.current = 0;
   };
 
   // 处理分类过滤
@@ -267,15 +337,51 @@ export default function Home() {
   }, [hasMore, loadMore]);
 
   return (
-    <main className="min-h-screen">
+    <main
+      className="min-h-screen"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* 下拉刷新指示器 */}
+      {isPulling && (
+        <div
+          className="fixed top-0 left-0 right-0 z-40 flex justify-center items-center transition-all duration-200"
+          style={{
+            transform: `translateY(${pullDistance - 60}px)`,
+            opacity: pullDistance / 80,
+          }}
+        >
+          <div className="glass-effect px-4 py-2 rounded-full flex items-center gap-2">
+            <svg
+              className={`w-5 h-5 transition-transform ${pullDistance > 60 ? 'rotate-180' : ''}`}
+              style={{ color: 'var(--apple-blue)' }}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+              />
+            </svg>
+            <span className="text-sm font-medium" style={{ color: 'var(--apple-blue)' }}>
+              {pullDistance > 60 ? '松手刷新' : '下拉刷新'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Apple 风格导航栏 */}
       <nav className="apple-nav sticky top-0 z-50 px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <h1 className="text-xl font-semibold" style={{color: 'var(--text-primary)'}}>
+          <div className="flex items-center space-x-4 sm:space-x-6">
+            <h1 className="text-lg sm:text-xl font-semibold" style={{color: 'var(--text-primary)'}}>
               热门内容
             </h1>
-            <div className="hidden sm:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-4">
               <Link
                 href="/"
                 className="text-sm font-medium transition-colors"
@@ -284,60 +390,37 @@ export default function Home() {
                 首页
               </Link>
               <Link
+                href="/history"
+                className="text-sm font-medium transition-colors hover:text-[var(--apple-blue)]"
+                style={{color: 'var(--text-secondary)'}}
+              >
+                历史
+              </Link>
+              <Link
                 href="/favorites"
-                className="text-sm font-medium transition-colors"
+                className="text-sm font-medium transition-colors hover:text-[var(--apple-blue)]"
                 style={{color: 'var(--text-secondary)'}}
               >
                 收藏
               </Link>
+              <Link
+                href="/profile"
+                className="text-sm font-medium transition-colors hover:text-[var(--apple-blue)]"
+                style={{color: 'var(--text-secondary)'}}
+              >
+                个人中心
+              </Link>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <SearchBar onSearch={handleSearch} />
             <NotificationCenter />
             <UserHeader />
           </div>
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* 缓存状态显示 */}
-        {cacheStatus && (
-          <div className="mb-6 flex justify-center">
-            <div className="glass-effect px-4 py-2 rounded-full flex items-center gap-3 text-sm">
-              <div className={`apple-status-dot ${cacheStatus.isValid ? 'bg-green-500' : 'bg-yellow-500'}`} />
-              <span style={{color: 'var(--text-secondary)'}}>
-                {cacheStatus.isValid ? '缓存有效' : '缓存过期'}
-              </span>
-              {cacheStatus.lastUpdate && (
-                <>
-                  <span style={{color: 'var(--gray-4)'}}>•</span>
-                  <span style={{color: 'var(--text-tertiary)'}}>
-                    更新于 {new Date(cacheStatus.lastUpdate).toLocaleTimeString()}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* 操作按钮组 */}
-        <div className="mb-6 flex justify-center gap-3">
-          <button
-            onClick={() => fetchContent(false)}
-            disabled={loading && !refreshing}
-            className="apple-button-secondary"
-          >
-            {loading && !refreshing ? '加载中...' : '普通刷新'}
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="apple-button"
-          >
-            {refreshing ? '刷新中...' : '⚡ 强制刷新'}
-          </button>
-        </div>
-
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* 分类过滤器 */}
         <CategoryFilter
           categories={availableCategories}
@@ -369,17 +452,33 @@ export default function Home() {
             <>
               {/* 统计信息 */}
               {items.length > 0 && (
-                <div className="mb-4 flex justify-center">
-                  <div className="glass-effect px-4 py-2 rounded-full flex items-center gap-3 text-sm">
-                    <span style={{color: 'var(--text-secondary)'}}>
-                      已显示
-                    </span>
-                    <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
-                      {items.length}
-                    </span>
-                    {totalItems > 0 && (
+                <div className="mb-3 sm:mb-4 flex justify-center">
+                  <div className="glass-effect px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                    {searchQuery ? (
                       <>
-                        <span style={{color: 'var(--gray-4)'}}>/ {totalItems}</span>
+                        <span style={{color: 'var(--text-secondary)'}}>
+                          找到
+                        </span>
+                        <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
+                          {filteredItems.length}
+                        </span>
+                        <span style={{color: 'var(--text-secondary)'}}>
+                          / {items.length} 条结果
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{color: 'var(--text-secondary)'}}>
+                          已显示
+                        </span>
+                        <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
+                          {items.length}
+                        </span>
+                        {totalItems > 0 && (
+                          <>
+                            <span style={{color: 'var(--gray-4)'}}>/ {totalItems}</span>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -387,10 +486,22 @@ export default function Home() {
               )}
 
               {/* 内容列表 */}
-              <ContentList
-                items={items}
-                onDismiss={handleDismiss}
-              />
+              {filteredItems.length === 0 && searchQuery ? (
+                <div className="apple-card-large p-12 text-center">
+                  <div className="text-5xl mb-4">🔍</div>
+                  <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>
+                    未找到匹配结果
+                  </h3>
+                  <p className="mb-6" style={{color: 'var(--text-secondary)'}}>
+                    试试其他关键词或清除搜索
+                  </p>
+                </div>
+              ) : (
+                <ContentList
+                  items={filteredItems}
+                  onDismiss={handleDismiss}
+                />
+              )}
 
               {/* 自动加载触发器 */}
               {hasMore && (
@@ -399,11 +510,11 @@ export default function Home() {
 
               {/* 加载更多按钮 */}
               {hasMore && items.length > 0 && (
-                <div className="mt-6 text-center">
+                <div className="mt-4 sm:mt-6 text-center px-3 sm:px-0">
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="apple-button-secondary px-8"
+                    className="w-full sm:w-auto apple-button-secondary px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base"
                   >
                     {loadingMore ? '加载中...' : '加载更多'}
                   </button>
@@ -411,7 +522,7 @@ export default function Home() {
               )}
 
               {!hasMore && items.length > 0 && (
-                <div className="mt-8 text-center text-sm" style={{color: 'var(--text-tertiary)'}}>
+                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm" style={{color: 'var(--text-tertiary)'}}>
                   已显示全部内容
                 </div>
               )}

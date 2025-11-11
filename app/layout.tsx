@@ -11,8 +11,21 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "YuCoder 赛博浏览器",
-  description: "赛博朋克风格的内容聚合器",
+  title: "热门内容聚合器",
+  description: "多平台热门内容聚合浏览器",
+  manifest: "/manifest.json",
+  themeColor: "#007AFF",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "热门聚合"
+  }
 };
 
 export default function RootLayout({

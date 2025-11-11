@@ -1,0 +1,49 @@
+{
+  "name": "热门内容聚合器",
+  "short_name": "热门聚合",
+  "description": "多平台热门内容聚合浏览器",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["news", "productivity"],
+  "shortcuts": [
+    {
+      "name": "收藏",
+      "short_name": "收藏",
+      "description": "查看我的收藏",
+      "url": "/favorites",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "历史",
+      "short_name": "历史",
+      "description": "查看浏览历史",
+      "url": "/history",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

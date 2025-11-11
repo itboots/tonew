@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
 
     // 转换字段名以匹配前端期望
     const formattedHistory = history.map(item => ({
-      id: item.item_id,
+      id: item.id, // 使用数据库主键作为唯一标识
+      itemId: item.item_id,
       title: item.title,
       link: item.link,
       category: item.category,
@@ -116,10 +117,26 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const historyId = searchParams.get('id');
     const itemId = searchParams.get('itemId');
 
-    if (itemId) {
-      // 删除单条历史记录
+    if (historyId) {
+      // 删除单条历史记录（通过数据库主键）
+      const { error } = await supabase
+        .from('history')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('id', historyId);
+
+      if (error) {
+        console.error('删除历史失败:', error);
+        return NextResponse.json(
+          { error: '删除历史失败' },
+          { status: 500 }
+        );
+      }
+    } else if (itemId) {
+      // 删除某个 item 的所有历史记录
       const { error } = await supabase
         .from('history')
         .delete()
@@ -151,7 +168,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: itemId ? 'Item removed' : 'History cleared'
+      message: historyId || itemId ? 'Item removed' : 'History cleared'
     });
   } catch (error) {
     console.error('删除历史失败:', error);

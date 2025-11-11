@@ -45,7 +45,7 @@ export default function FavoritesPage() {
     }
   }
 
-  const removeFavorite = async (itemId: string) => {
+  const removeFavorite = async (itemId: string, favoriteId: string) => {
     if (!confirm("确定要取消收藏吗？")) return
 
     try {
@@ -54,7 +54,7 @@ export default function FavoritesPage() {
       })
 
       if (response.ok) {
-        setFavorites(prev => prev.filter(fav => fav.id !== itemId))
+        setFavorites(prev => prev.filter(fav => fav.id !== favoriteId))
       } else {
         const data = await response.json()
         setError(data.error || "Failed to remove favorite")
@@ -230,7 +230,7 @@ export default function FavoritesPage() {
 
                   {/* 删除按钮 */}
                   <button
-                    onClick={() => removeFavorite(item.id)}
+                    onClick={() => removeFavorite(item.itemId, item.id)}
                     className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-[var(--gray-2)]"
                     style={{ color: 'var(--apple-red)' }}
                     title="取消收藏"

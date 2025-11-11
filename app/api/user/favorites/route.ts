@@ -28,7 +28,8 @@ export async function GET() {
 
     // 转换字段名以匹配前端期望
     const formattedFavorites = favorites.map(fav => ({
-      id: fav.item_id,
+      id: fav.id, // 使用数据库主键作为唯一标识
+      itemId: fav.item_id,
       userId: fav.user_id,
       title: fav.title,
       link: fav.link,
@@ -111,7 +112,8 @@ export async function POST(request: NextRequest) {
 
     // 转换字段名
     const formattedFavorite = {
-      id: favorite.item_id,
+      id: favorite.id, // 使用数据库主键作为唯一标识
+      itemId: favorite.item_id,
       userId: favorite.user_id,
       title: favorite.title,
       link: favorite.link,

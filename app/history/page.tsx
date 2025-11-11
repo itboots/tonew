@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 
 interface HistoryItem {
   id: string;
+  itemId: string;
   title: string;
   link: string;
   category: string;
@@ -65,14 +66,14 @@ export default function HistoryPage() {
     }
   };
 
-  const removeItem = async (itemId: string) => {
+  const removeItem = async (historyId: string) => {
     try {
-      const response = await fetch(`/api/user/history?itemId=${itemId}`, {
+      const response = await fetch(`/api/user/history?id=${historyId}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
-        setHistory(prev => prev.filter(item => item.id !== itemId));
+        setHistory(prev => prev.filter(item => item.id !== historyId));
       }
     } catch (error) {
       console.error('删除失败:', error);

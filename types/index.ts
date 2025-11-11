@@ -94,6 +94,7 @@ export interface UserPreferences {
 
 // 收藏相关
 export interface FavoriteItem extends ValueItem {
+  itemId: string; // 原始 item_id
   userId: string;
   favoritedAt: string;
   tags?: string[];

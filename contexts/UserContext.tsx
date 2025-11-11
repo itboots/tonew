@@ -50,11 +50,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        await loadUser(session.user)
+        // 不等待 loadUser 完成，避免阻塞
+        loadUser(session.user)
+      } else {
+        // 没有 session 时也要设置 isLoading 为 false
+        setIsLoading(false)
       }
     } catch (error) {
       console.error("Failed to load session:", error)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -66,8 +69,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       name: supabaseUser.user_metadata?.name || supabaseUser.email!.split('@')[0],
     })
 
-    // 加载用户偏好
-    await loadPreferences(supabaseUser.id)
+    // 用户信息已加载，结束 loading 状态
+    setIsLoading(false)
+
+    // 异步加载用户偏好，不阻塞
+    loadPreferences(supabaseUser.id)
   }
 
   const loadPreferences = async (userId: string) => {

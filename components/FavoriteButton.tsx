@@ -12,8 +12,16 @@ interface FavoriteButtonProps {
 // 全局收藏缓存，避免每个按钮都请求一次
 let favoriteCachePromise: Promise<Set<string>> | null = null
 let favoriteCache: Set<string> | null = null
+let lastUserId: string | null = null
 
-const getFavoriteIds = async (): Promise<Set<string>> => {
+const getFavoriteIds = async (userId: string): Promise<Set<string>> => {
+  // 如果用户切换了，清除缓存
+  if (lastUserId !== userId) {
+    favoriteCache = null
+    favoriteCachePromise = null
+    lastUserId = userId
+  }
+
   // 如果缓存存在，直接返回
   if (favoriteCache) return favoriteCache
 
@@ -43,6 +51,7 @@ const getFavoriteIds = async (): Promise<Set<string>> => {
 export const clearFavoriteCache = () => {
   favoriteCache = null
   favoriteCachePromise = null
+  lastUserId = null
 }
 
 export default function FavoriteButton({ item, className = "" }: FavoriteButtonProps) {
@@ -58,7 +67,7 @@ export default function FavoriteButton({ item, className = "" }: FavoriteButtonP
     }
 
     const checkFavoriteStatus = async () => {
-      const ids = await getFavoriteIds()
+      const ids = await getFavoriteIds(user.id)
       setIsFavorited(ids.has(item.id))
     }
 

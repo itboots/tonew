@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         link: item.link,
         description: item.description || null,
         category: item.category || null,
-        importance: item.importance || null,
+        importance: item.importance ? Math.round(item.importance) : null,
         tags: tags || [],
         notes: notes || null,
         publish_date: item.publishDate || null,

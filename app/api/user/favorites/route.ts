@@ -1,53 +1,50 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { client } from "@/lib/redis"
-import { FavoriteItem } from "@/types"
-
-// Helper function to ensure Redis client is available
-function getRedisClient() {
-  if (!client) {
-    throw new Error("Redis client not available")
-  }
-  return client
-}
+import { createClient } from "@/lib/supabase/server"
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const favoritesKey = `user:${session.user.id}:favorites`
-    const favoriteIds = await getRedisClient().smembers(favoritesKey)
+    // 查询收藏列表
+    const { data: favorites, error } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('favorited_at', { ascending: false })
 
-    if (favoriteIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-        metadata: { total: 0, hasMore: false }
-      })
+    if (error) {
+      console.error("Get favorites error:", error)
+      return NextResponse.json(
+        { error: "Failed to get favorites" },
+        { status: 500 }
+      )
     }
 
-    // Get favorite items data one by one since Upstash Redis doesn't support pipeline
-    const favorites: FavoriteItem[] = []
-
-    for (const id of favoriteIds) {
-      const data = await getRedisClient().hgetall(`favorite:${id}`)
-      if (data && Object.keys(data).length > 0) {
-        favorites.push(data as unknown as FavoriteItem)
-      }
-    }
-
-    // Sort by favorited date (newest first)
-    favorites.sort((a, b) =>
-      new Date(b.favoritedAt).getTime() - new Date(a.favoritedAt).getTime()
-    )
+    // 转换字段名以匹配前端期望
+    const formattedFavorites = favorites.map(fav => ({
+      id: fav.item_id,
+      userId: fav.user_id,
+      title: fav.title,
+      link: fav.link,
+      description: fav.description,
+      category: fav.category,
+      importance: fav.importance,
+      tags: fav.tags || [],
+      notes: fav.notes,
+      publishDate: fav.publish_date,
+      favoritedAt: fav.favorited_at,
+    }))
 
     return NextResponse.json({
       success: true,
-      data: favorites,
-      metadata: { total: favorites.length, hasMore: false }
+      data: formattedFavorites,
+      metadata: { total: formattedFavorites.length, hasMore: false }
     })
   } catch (error) {
     console.error("Get favorites error:", error)
@@ -60,8 +57,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -71,36 +71,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid item data" }, { status: 400 })
     }
 
-    const favoriteId = `${session.user.id}:${item.id}`
-    const favoriteKey = `favorite:${favoriteId}`
-    const favoritesKey = `user:${session.user.id}:favorites`
+    // 检查是否已收藏
+    const { data: existing } = await supabase
+      .from('favorites')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('item_id', item.id)
+      .single()
 
-    // Check if already favorited
-    const exists = await getRedisClient().sismember(favoritesKey, favoriteId)
-    if (exists) {
+    if (existing) {
       return NextResponse.json({ error: "Item already favorited" }, { status: 409 })
     }
 
-    // Create favorite item
-    const favoriteItem: FavoriteItem = {
-      ...item,
-      userId: session.user.id,
-      favoritedAt: new Date().toISOString(),
-      tags: tags || [],
-      notes: notes || "",
+    // 插入收藏记录
+    const { data: favorite, error } = await supabase
+      .from('favorites')
+      .insert({
+        user_id: user.id,
+        item_id: item.id,
+        title: item.title,
+        link: item.link,
+        description: item.description || null,
+        category: item.category || null,
+        importance: item.importance || null,
+        tags: tags || [],
+        notes: notes || null,
+        publish_date: item.publishDate || null,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Add favorite error:", error)
+      return NextResponse.json(
+        { error: "Failed to add favorite" },
+        { status: 500 }
+      )
     }
 
-    // Save to Redis
-    await getRedisClient().hset(favoriteKey, favoriteItem as unknown as Record<string, unknown>)
-    await getRedisClient().sadd(favoritesKey, favoriteId)
-
-    // Set expiration (30 days)
-    await getRedisClient().expire(favoriteKey, 60 * 60 * 24 * 30)
-    await getRedisClient().expire(favoritesKey, 60 * 60 * 24 * 30)
+    // 转换字段名
+    const formattedFavorite = {
+      id: favorite.item_id,
+      userId: favorite.user_id,
+      title: favorite.title,
+      link: favorite.link,
+      description: favorite.description,
+      category: favorite.category,
+      importance: favorite.importance,
+      tags: favorite.tags || [],
+      notes: favorite.notes,
+      publishDate: favorite.publish_date,
+      favoritedAt: favorite.favorited_at,
+    }
 
     return NextResponse.json({
       success: true,
-      data: favoriteItem,
+      data: formattedFavorite,
     })
   } catch (error) {
     console.error("Add favorite error:", error)
@@ -113,8 +139,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -125,13 +154,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Item ID required" }, { status: 400 })
     }
 
-    const favoriteId = `${session.user.id}:${itemId}`
-    const favoriteKey = `favorite:${favoriteId}`
-    const favoritesKey = `user:${session.user.id}:favorites`
+    // 删除收藏记录
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('item_id', itemId)
 
-    // Remove from favorites
-    await getRedisClient().srem(favoritesKey, favoriteId)
-    await getRedisClient().del(favoriteKey)
+    if (error) {
+      console.error("Remove favorite error:", error)
+      return NextResponse.json(
+        { error: "Failed to remove favorite" },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,

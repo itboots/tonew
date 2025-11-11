@@ -1,43 +1,43 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { client } from '@/lib/redis';
-
-// Helper function to ensure Redis client is available
-function getRedisClient() {
-  if (!client) {
-    throw new Error('Redis client not available');
-  }
-  return client;
-}
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const supabase = await createClient();
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
-
     // 并行获取所有统计数据
-    const [favoritesCount, historyCount, dismissedCount] = await Promise.all([
+    const [favoritesResult, historyResult, dismissedResult] = await Promise.all([
       // 收藏数量
-      getRedisClient().scard(`user:${userId}:favorites`),
+      supabase
+        .from('favorites')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
       // 历史记录数量
-      getRedisClient().zcard(`user:${userId}:history`),
+      supabase
+        .from('history')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
       // 已滑掉的数量
-      getRedisClient().scard('dismissed_items')
+      supabase
+        .from('dismissed_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
     ]);
 
-    // 获取用户加入日期（从用户数据中获取）
-    const userKey = `user:${userId}`;
-    const userData = await getRedisClient().hget(userKey, 'createdAt');
+    // 获取用户加入日期（从 auth.users 表）
+    const joinedDate = user.created_at || new Date().toISOString();
 
     const stats = {
-      favoritesCount: favoritesCount || 0,
-      historyCount: historyCount || 0,
-      dismissedCount: dismissedCount || 0,
-      joinedDate: userData || new Date().toISOString()
+      favoritesCount: favoritesResult.count || 0,
+      historyCount: historyResult.count || 0,
+      dismissedCount: dismissedResult.count || 0,
+      joinedDate
     };
 
     return NextResponse.json({

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -16,21 +16,21 @@ interface HistoryItem {
 }
 
 export default function HistoryPage() {
-  const { data: session, status } = useSession();
+  const { user, isLoading: isUserLoading } = useUser();
   const router = useRouter();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (isUserLoading) return;
 
-    if (!session) {
+    if (!user) {
       router.push('/auth/signin');
       return;
     }
 
     loadHistory();
-  }, [session, status, router]);
+  }, [user, isUserLoading, router]);
 
   const loadHistory = async () => {
     try {
@@ -77,7 +77,7 @@ export default function HistoryPage() {
     }
   };
 
-  if (status === 'loading' || isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="加载中..." />
@@ -85,7 +85,7 @@ export default function HistoryPage() {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null;
   }
 

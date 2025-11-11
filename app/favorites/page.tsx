@@ -1,29 +1,29 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useUser } from "@/contexts/UserContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { FavoriteItem } from "@/types"
 import LoadingSpinner from "@/components/LoadingSpinner"
 
 export default function FavoritesPage() {
-  const { data: session, status } = useSession()
+  const { user, isLoading: isUserLoading } = useUser()
   const router = useRouter()
   const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState("")
 
   useEffect(() => {
-    if (status === "loading") return
+    if (isUserLoading) return
 
-    if (!session) {
+    if (!user) {
       router.push("/auth/signin")
       return
     }
 
     loadFavorites()
-  }, [session, status, router])
+  }, [user, isUserLoading, router])
 
   const loadFavorites = async () => {
     try {
@@ -61,7 +61,7 @@ export default function FavoritesPage() {
     }
   }
 
-  if (status === "loading" || isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="加载中..." />
@@ -69,7 +69,7 @@ export default function FavoritesPage() {
     )
   }
 
-  if (!session) {
+  if (!user) {
     return null
   }
 

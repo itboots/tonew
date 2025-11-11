@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { useUser } from '@/contexts/UserContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -22,7 +22,7 @@ interface UserPreferences {
 }
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { user, isLoading: isUserLoading, logout } = useUser();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -31,15 +31,15 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (status === 'loading') return;
+    if (isUserLoading) return;
 
-    if (!session) {
+    if (!user) {
       router.push('/auth/signin');
       return;
     }
 
     loadUserData();
-  }, [session, status, router]);
+  }, [user, isUserLoading, router]);
 
   const loadUserData = async () => {
     try {
@@ -93,11 +93,11 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     if (confirm('确定要退出登录吗？')) {
-      await signOut({ callbackUrl: '/' });
+      await logout();
     }
   };
 
-  if (status === 'loading' || isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner message="加载中..." />
@@ -105,7 +105,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null;
   }
 
@@ -140,16 +140,16 @@ export default function ProfilePage() {
               className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white"
               style={{ backgroundColor: 'var(--apple-blue)' }}
             >
-              {session.user?.name?.[0]?.toUpperCase() || session.user?.email?.[0]?.toUpperCase() || 'U'}
+              {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
             </div>
 
             {/* 用户名和邮箱 */}
             <div className="flex-1">
               <h2 className="text-xl sm:text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-                {session.user?.name || '用户'}
+                {user.name || '用户'}
               </h2>
               <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
-                {session.user?.email}
+                {user.email}
               </p>
               {stats?.joinedDate && (
                 <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>

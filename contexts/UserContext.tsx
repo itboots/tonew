@@ -1,14 +1,21 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
-import { auth as getAuth, signIn as simpleSignIn, signOut as simpleSignOut } from "@/lib/simple-auth"
-import { User, UserPreferences } from "@/types"
+import { createClient } from "@/lib/supabase/client"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
+import { UserPreferences } from "@/types"
+
+interface User {
+  id: string
+  email: string
+  name: string | null
+}
 
 interface UserContextType {
   user: User | null
   isLoading: boolean
   preferences: UserPreferences | null
-  updatePreferences: (preferences: Partial<UserPreferences>) => void
+  updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>
   login: (credentials: { email: string; password: string; name?: string }) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
 }
@@ -18,27 +25,32 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [preferences, setPreferences] = useState<UserPreferences | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createClient()
 
   useEffect(() => {
     loadUserSession()
+
+    // 监听认证状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUser(session.user)
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setPreferences(null)
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserSession = async () => {
-    setIsLoading(true)
     try {
-      const session = await getAuth()
+      const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
-        setUser(session.user)
-
-        // Load user preferences
-        const mockPreferences: UserPreferences = {
-          categories: [],
-          notifications: true,
-          theme: "cyberpunk",
-          autoRefresh: true,
-        }
-        setPreferences(mockPreferences)
+        await loadUser(session.user)
       }
     } catch (error) {
       console.error("Failed to load session:", error)
@@ -47,28 +59,92 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const loadUser = async (supabaseUser: SupabaseUser) => {
+    setUser({
+      id: supabaseUser.id,
+      email: supabaseUser.email!,
+      name: supabaseUser.user_metadata?.name || supabaseUser.email!.split('@')[0],
+    })
+
+    // 加载用户偏好
+    await loadPreferences(supabaseUser.id)
+  }
+
+  const loadPreferences = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('theme, auto_refresh')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('Failed to load preferences:', error)
+        // 设置默认偏好
+        setPreferences({
+          categories: [],
+          notifications: true,
+          theme: 'apple',
+          autoRefresh: true,
+        })
+        return
+      }
+
+      setPreferences({
+        categories: [],
+        notifications: true,
+        theme: data.theme || 'apple',
+        autoRefresh: data.auto_refresh ?? true,
+      })
+    } catch (error) {
+      console.error('Failed to load preferences:', error)
+    }
+  }
+
   const login = async (credentials: { email: string; password: string; name?: string }) => {
     setIsLoading(true)
     try {
-      const result = await simpleSignIn(credentials)
-      if (result.success && result.user) {
-        setUser(result.user)
+      // 判断是登录还是注册
+      if (credentials.name) {
+        // 注册新用户
+        const { data, error } = await supabase.auth.signUp({
+          email: credentials.email,
+          password: credentials.password,
+          options: {
+            data: {
+              name: credentials.name,
+            },
+          },
+        })
 
-        // Set default preferences
-        const mockPreferences: UserPreferences = {
-          categories: [],
-          notifications: true,
-          theme: "cyberpunk",
-          autoRefresh: true,
+        if (error) {
+          return { success: false, error: error.message || '注册失败' }
         }
-        setPreferences(mockPreferences)
 
-        return { success: true }
+        if (data.user) {
+          return { success: true }
+        }
+
+        return { success: false, error: '注册失败' }
       } else {
-        return { success: false, error: result.error || "Login failed" }
+        // 登录
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        })
+
+        if (error) {
+          return { success: false, error: error.message || '登录失败' }
+        }
+
+        if (data.user) {
+          return { success: true }
+        }
+
+        return { success: false, error: '登录失败' }
       }
-    } catch (error) {
-      return { success: false, error: "Login failed" }
+    } catch (error: any) {
+      return { success: false, error: error.message || '认证失败' }
     } finally {
       setIsLoading(false)
     }
@@ -77,28 +153,51 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updatePreferences = async (newPreferences: Partial<UserPreferences>) => {
     if (!user || !preferences) return
 
-    setIsLoading(true)
     try {
-      // Filter out undefined values and merge with existing preferences
+      // 过滤掉 undefined 值
       const filteredPrefs = Object.fromEntries(
         Object.entries(newPreferences).filter(([_, v]) => v !== undefined)
       ) as Partial<UserPreferences>
 
       const updatedPrefs: UserPreferences = { ...preferences, ...filteredPrefs }
+
+      // 更新本地状态
       setPreferences(updatedPrefs)
+
+      // 保存到 Supabase
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          theme: updatedPrefs.theme,
+          auto_refresh: updatedPrefs.autoRefresh,
+        })
+        .eq('id', user.id)
+
+      if (error) {
+        console.error('Failed to update preferences:', error)
+        // 如果更新失败，尝试插入（可能是首次设置）
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: user.id,
+            theme: updatedPrefs.theme,
+            auto_refresh: updatedPrefs.autoRefresh,
+          })
+
+        if (insertError) {
+          console.error('Failed to insert preferences:', insertError)
+        }
+      }
     } catch (error) {
       console.error("Failed to update preferences:", error)
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const logout = async () => {
     try {
-      await simpleSignOut()
+      await supabase.auth.signOut()
       setUser(null)
       setPreferences(null)
-      // Redirect to signin page
       window.location.href = "/auth/signin"
     } catch (error) {
       console.error("Logout error:", error)

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useSession } from 'next-auth/react';
+import { useUser } from './UserContext';
 
 type Theme = 'apple' | 'cyberpunk';
 
@@ -14,13 +14,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { data: session } = useSession();
+  const { user } = useUser();
   const [theme, setThemeState] = useState<Theme>('apple');
   const [isLoading, setIsLoading] = useState(true);
 
   // 从服务器加载用户偏好
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       loadThemePreference();
     } else {
       // 未登录用户从 localStorage 加载
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
       setIsLoading(false);
     }
-  }, [session]);
+  }, [user]);
 
   const loadThemePreference = async () => {
     try {
@@ -58,7 +58,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('theme', newTheme);
 
     // 如果用户已登录，保存到服务器
-    if (session?.user) {
+    if (user) {
       try {
         await fetch('/api/user/preferences', {
           method: 'PUT',

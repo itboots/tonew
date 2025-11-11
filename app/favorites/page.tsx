@@ -18,7 +18,10 @@ export default function FavoritesPage() {
     if (isUserLoading) return
 
     if (!user) {
+      // 未登录直接跳转登录页，避免页面级 loading 一直显示
       router.push("/auth/signin")
+      // 同时结束本页的加载态，避免出现“无限加载”观感
+      setIsLoading(false)
       return
     }
 
@@ -59,6 +62,11 @@ export default function FavoritesPage() {
     } catch (error) {
       setError("操作失败，请重试")
     }
+  }
+
+  // 优先处理未登录态，避免显示加载中
+  if (!isUserLoading && !user) {
+    return null
   }
 
   if (isUserLoading || isLoading) {

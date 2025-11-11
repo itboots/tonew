@@ -25,7 +25,9 @@ export default function HistoryPage() {
     if (isUserLoading) return;
 
     if (!user) {
+      // 未登录则跳转登录并结束本页 loading，避免无限加载观感
       router.push('/auth/signin');
+      setIsLoading(false);
       return;
     }
 
@@ -76,6 +78,11 @@ export default function HistoryPage() {
       console.error('删除失败:', error);
     }
   };
+
+  // 未登录时优先返回，避免展示加载中
+  if (!isUserLoading && !user) {
+    return null;
+  }
 
   if (isUserLoading || isLoading) {
     return (

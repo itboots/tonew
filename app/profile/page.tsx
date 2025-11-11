@@ -34,7 +34,9 @@ export default function ProfilePage() {
     if (isUserLoading) return;
 
     if (!user) {
+      // 未登录直接跳转，并结束本页 loading，避免无限加载
       router.push('/auth/signin');
+      setIsLoading(false);
       return;
     }
 
@@ -96,6 +98,11 @@ export default function ProfilePage() {
       await logout();
     }
   };
+
+  // 未登录时优先返回，避免展示加载中
+  if (!isUserLoading && !user) {
+    return null;
+  }
 
   if (isUserLoading || isLoading) {
     return (

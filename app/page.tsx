@@ -36,6 +36,9 @@ export default function Home() {
   // 分类数据缓存
   const categoryCache = useRef<Map<string | null, ValueItem[]>>(new Map());
 
+  // 电脑端：按分类分组的数据
+  const [categoryGroupedData, setCategoryGroupedData] = useState<Map<string, ValueItem[]>>(new Map());
+
   // 搜索相关状态
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState<ValueItem[]>([]);
@@ -67,6 +70,27 @@ export default function Home() {
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
+
+  // 获取分类显示信息（复制自 CategoryFilter）
+  const getCategoryDisplay = (category: string) => {
+    const categoryMap: { [key: string]: { name: string; icon: string } } = {
+      '知乎热榜': { name: '知乎', icon: '📚' },
+      '微博热搜': { name: '微博', icon: '🔥' },
+      '抖音热搜': { name: '抖音', icon: '🎵' },
+      'B站热门': { name: 'B站', icon: '📺' },
+      '虎扑步行街热榜': { name: '虎扑', icon: '⚽' },
+      '百度贴吧热榜': { name: '贴吧', icon: '💬' },
+      '编程热门': { name: '编程', icon: '💻' },
+      'CSDN热榜': { name: 'CSDN', icon: '👨‍💻' },
+      '掘金热榜': { name: '掘金', icon: '⛏️' },
+      '网易云热歌榜': { name: '网易云', icon: '🎶' },
+      'QQ音乐热歌榜': { name: 'QQ', icon: '🎵' },
+      '什么值得买热榜': { name: '值得买', icon: '🛒' },
+      '直播吧体育热榜': { name: '体育', icon: '🏀' },
+    };
+
+    return categoryMap[category] || { name: category, icon: '📰' };
+  };
 
   const fetchCacheStatus = useCallback(async () => {
     try {
@@ -109,7 +133,7 @@ export default function Home() {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
       if (!isMobile && page === 1 && !selectedCategory) {
-        // 电脑端：并发加载所有分类数据
+        // 电脑端：并发加载所有分类数据，按分类分组
         console.log('🖥️ 电脑端：并发加载所有分类数据');
 
         // 先加载分类列表（如果没有）
@@ -130,7 +154,7 @@ export default function Home() {
         const promises = categoriesToLoad.map(async (category) => {
           const params = new URLSearchParams({
             page: '1',
-            pageSize: pageSize.toString(),
+            pageSize: '10', // 每个分类只显示前10条
             category: encodeURIComponent(category)
           });
 
@@ -141,22 +165,31 @@ export default function Home() {
           try {
             const response = await fetch(`/api/scrape?${params.toString()}`);
             const data = await response.json();
-            return data.success ? data.data : [];
+            return {
+              category,
+              data: data.success ? data.data : []
+            };
           } catch (error) {
             console.error(`加载分类 ${category} 失败:`, error);
-            return [];
+            return {
+              category,
+              data: []
+            };
           }
         });
 
         // 等待所有请求完成
         const results = await Promise.all(promises);
 
-        // 合并所有数据并按 importance 排序
-        const allData = results.flat().sort((a, b) => b.importance - a.importance);
+        // 构建分类分组数据
+        const groupedData = new Map<string, ValueItem[]>();
+        results.forEach(({ category, data }) => {
+          if (data.length > 0) {
+            groupedData.set(category, data);
+          }
+        });
 
-        setItems(allData);
-        setCurrentPage(1);
-        setTotalItems(allData.length);
+        setCategoryGroupedData(groupedData);
         setHasMore(false); // 电脑端不支持分页
 
         if (forceRefresh) {
@@ -507,7 +540,7 @@ export default function Home() {
 
         {/* 内容区域 */}
         <div className="mt-6">
-          {loading && items.length === 0 ? (
+          {loading && items.length === 0 && categoryGroupedData.size === 0 ? (
             <LoadingSpinner message="正在加载内容..." />
           ) : error ? (
             <div className="text-center py-12">
@@ -526,82 +559,190 @@ export default function Home() {
             </div>
           ) : (
             <>
-              {/* 统计信息 */}
-              {items.length > 0 && (
-                <div className="mb-3 sm:mb-4 flex justify-center">
-                  <div className="glass-effect px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
-                    {searchQuery ? (
-                      <>
-                        <span style={{color: 'var(--text-secondary)'}}>
-                          找到
-                        </span>
-                        <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
-                          {filteredItems.length}
-                        </span>
-                        <span style={{color: 'var(--text-secondary)'}}>
-                          / {items.length} 条结果
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span style={{color: 'var(--text-secondary)'}}>
-                          已显示
-                        </span>
-                        <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
-                          {items.length}
-                        </span>
-                        {totalItems > 0 && (
-                          <>
-                            <span style={{color: 'var(--gray-4)'}}>/ {totalItems}</span>
-                          </>
-                        )}
-                      </>
-                    )}
+              {/* 电脑端：分类卡片布局（仅在未选择分类时显示） */}
+              {!selectedCategory && (
+                <div className="hidden md:block">
+                  {categoryGroupedData.size > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {Array.from(categoryGroupedData.entries()).map(([category, categoryItems]) => {
+                        const display = getCategoryDisplay(category);
+                        return (
+                          <div key={category} className="apple-card p-4">
+                            {/* 分类标题 */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">{display.icon}</span>
+                                <h3 className="text-lg font-semibold" style={{color: 'var(--text-primary)'}}>
+                                  {display.name}
+                                </h3>
+                                <span className="text-xs px-2 py-0.5 rounded-full" style={{
+                                  backgroundColor: 'var(--apple-orange)',
+                                  color: 'white'
+                                }}>
+                                  {categoryItems.length}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 分类内容列表 */}
+                            <div className="space-y-2">
+                              {categoryItems.map((item, index) => (
+                                <Link
+                                  key={item.id}
+                                  href={item.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block p-3 rounded-lg hover:bg-[var(--gray-1)] transition-colors"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <span className="text-sm font-bold mt-0.5" style={{
+                                      color: index < 3 ? 'var(--apple-orange)' : 'var(--text-tertiary)',
+                                      minWidth: '20px'
+                                    }}>
+                                      {index + 1}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="text-sm font-medium line-clamp-2" style={{color: 'var(--text-primary)'}}>
+                                        {item.title}
+                                      </h4>
+                                      {item.description && (
+                                        <p className="text-xs mt-1 line-clamp-1" style={{color: 'var(--text-tertiary)'}}>
+                                          {item.description}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </Link>
+                              ))}
+                            </div>
+
+                            {/* 查看更多 */}
+                            <button
+                              onClick={() => handleCategoryChange(category)}
+                              className="w-full mt-3 py-2 text-sm font-medium rounded-lg transition-colors hover:bg-[var(--gray-2)]"
+                              style={{
+                                color: 'var(--apple-blue)',
+                                backgroundColor: 'var(--gray-1)'
+                              }}
+                            >
+                              查看更多 {display.name} 内容
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="apple-card-large p-12 text-center">
+                      <div className="text-5xl mb-4">📭</div>
+                      <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>
+                        暂无内容
+                      </h3>
+                      <p style={{color: 'var(--text-secondary)'}}>
+                        请稍后刷新重试
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 单分类列表视图（移动端或电脑端选择分类后） */}
+              <div className={selectedCategory ? '' : 'md:hidden'}>
+                {/* 电脑端：返回全部按钮 */}
+                {selectedCategory && (
+                  <div className="hidden md:block mb-4">
+                    <button
+                      onClick={() => handleCategoryChange(null)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--gray-2)]"
+                      style={{
+                        color: 'var(--apple-blue)',
+                        backgroundColor: 'var(--gray-1)'
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      返回全部分类
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 内容列表 */}
-              {filteredItems.length === 0 && searchQuery ? (
-                <div className="apple-card-large p-12 text-center">
-                  <div className="text-5xl mb-4">🔍</div>
-                  <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>
-                    未找到匹配结果
-                  </h3>
-                  <p className="mb-6" style={{color: 'var(--text-secondary)'}}>
-                    试试其他关键词或清除搜索
-                  </p>
-                </div>
-              ) : (
-                <ContentList
-                  items={filteredItems}
-                  onDismiss={handleDismiss}
-                />
-              )}
+                {/* 统计信息 */}
+                {items.length > 0 && (
+                  <div className="mb-3 sm:mb-4 flex justify-center">
+                    <div className="glass-effect px-3 sm:px-4 py-1.5 sm:py-2 rounded-full flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      {searchQuery ? (
+                        <>
+                          <span style={{color: 'var(--text-secondary)'}}>
+                            找到
+                          </span>
+                          <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
+                            {filteredItems.length}
+                          </span>
+                          <span style={{color: 'var(--text-secondary)'}}>
+                            / {items.length} 条结果
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{color: 'var(--text-secondary)'}}>
+                            已显示
+                          </span>
+                          <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
+                            {items.length}
+                          </span>
+                          {totalItems > 0 && (
+                            <>
+                              <span style={{color: 'var(--gray-4)'}}>/ {totalItems}</span>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-              {/* 自动加载触发器 */}
-              {hasMore && (
-                <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
-              )}
+                {/* 内容列表 */}
+                {filteredItems.length === 0 && searchQuery ? (
+                  <div className="apple-card-large p-12 text-center">
+                    <div className="text-5xl mb-4">🔍</div>
+                    <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>
+                      未找到匹配结果
+                    </h3>
+                    <p className="mb-6" style={{color: 'var(--text-secondary)'}}>
+                      试试其他关键词或清除搜索
+                    </p>
+                  </div>
+                ) : (
+                  <ContentList
+                    items={filteredItems}
+                    onDismiss={handleDismiss}
+                  />
+                )}
 
-              {/* 加载更多按钮 */}
-              {hasMore && items.length > 0 && (
-                <div className="mt-4 sm:mt-6 text-center px-3 sm:px-0">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="w-full sm:w-auto apple-button-secondary px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base"
-                  >
-                    {loadingMore ? '加载中...' : '加载更多'}
-                  </button>
-                </div>
-              )}
+                {/* 自动加载触发器 */}
+                {hasMore && (
+                  <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
+                )}
 
-              {!hasMore && items.length > 0 && (
-                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm" style={{color: 'var(--text-tertiary)'}}>
-                  已显示全部内容
-                </div>
-              )}
+                {/* 加载更多按钮 */}
+                {hasMore && items.length > 0 && (
+                  <div className="mt-4 sm:mt-6 text-center px-3 sm:px-0">
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="w-full sm:w-auto apple-button-secondary px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base"
+                    >
+                      {loadingMore ? '加载中...' : '加载更多'}
+                    </button>
+                  </div>
+                )}
+
+                {!hasMore && items.length > 0 && (
+                  <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm" style={{color: 'var(--text-tertiary)'}}>
+                    已显示全部内容
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

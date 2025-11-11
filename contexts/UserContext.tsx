@@ -31,6 +31,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     loadUserSession()
 
+    // 兜底超时：若认证状态迟迟未返回，避免全局一直 loading
+    const timeout = setTimeout(() => {
+      setIsLoading(false)
+    }, 8000)
+
     // 监听认证状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
@@ -38,11 +43,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         setUser(null)
         setPreferences(null)
+        setIsLoading(false)
       }
     })
 
     return () => {
       subscription.unsubscribe()
+      clearTimeout(timeout)
     }
   }, [])
 

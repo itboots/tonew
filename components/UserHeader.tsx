@@ -41,7 +41,7 @@ export default function UserHeader() {
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold hover:from-cyan-400 hover:to-purple-500 transition-all transform hover:scale-105"
           >
-            {user.name.charAt(0).toUpperCase()}
+            {(user.name || user.email || 'U').charAt(0).toUpperCase()}
           </button>
 
           {/* User Menu */}

@@ -24,10 +24,10 @@ export default function NotificationCenter() {
 
   // Subscribe to real-time notifications
   useEffect(() => {
-    if (!session?.user) return
+    if (!session?.user?.email) return
 
     const unsubscribe = notificationService.subscribe(
-      session.user.id,
+      session.user.email,
       (notification: Notification) => {
         setNotifications(prev => [notification, ...prev.slice(0, 49)]) // Keep latest 50
         setUnreadCount(prev => prev + 1)

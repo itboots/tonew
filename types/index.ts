@@ -88,7 +88,7 @@ export interface User {
 export interface UserPreferences {
   categories: string[];
   notifications: boolean;
-  theme: 'cyberpunk' | 'dark' | 'light';
+  theme: 'apple' | 'cyberpunk';
   autoRefresh: boolean;
 }
 

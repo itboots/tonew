@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { client } from "@/lib/redis"
 import { Tag } from "@/types"
 
@@ -13,12 +13,13 @@ function getRedisClient() {
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tagsKey = `user:${session.user.id}:tags`
+    const tagsKey = `user:${user.id}:tags`
     const tagIds = await getRedisClient().smembers(tagsKey)
 
     if (tagIds.length === 0) {
@@ -56,8 +57,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if tag already exists
-    const tagsKey = `user:${session.user.id}:tags`
+    const tagsKey = `user:${user.id}:tags`
     const existingTags = await getRedisClient().smembers(tagsKey)
 
     for (const tagId of existingTags) {
@@ -84,14 +86,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const tagId = `${session.user.id}:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const tagId = `${user.id}:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const tagKey = `tag:${tagId}`
 
     const tag: Tag = {
       id: tagId,
       name: name.trim(),
       color,
-      userId: session.user.id,
+      userId: user.id,
       createdAt: new Date().toISOString(),
       itemCount: 0,
     }
@@ -119,8 +121,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -137,7 +140,7 @@ export async function PUT(request: NextRequest) {
 
     // Verify tag belongs to user
     const existingTag = await getRedisClient().hgetall(tagKey)
-    if (!existingTag || existingTag.userId !== session.user.id) {
+    if (!existingTag || existingTag.userId !== user.id) {
       return NextResponse.json(
         { error: "Tag not found or access denied" },
         { status: 404 }
@@ -146,7 +149,7 @@ export async function PUT(request: NextRequest) {
 
     // Check for duplicate name if updating name
     if (name && name !== existingTag.name) {
-      const tagsKey = `user:${session.user.id}:tags`
+      const tagsKey = `user:${user.id}:tags`
       const existingTags = await getRedisClient().smembers(tagsKey)
 
       for (const existingTagId of existingTags) {
@@ -187,8 +190,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -203,11 +207,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     const tagKey = `tag:${tagId}`
-    const tagsKey = `user:${session.user.id}:tags`
+    const tagsKey = `user:${user.id}:tags`
 
     // Verify tag belongs to user
     const existingTag = await getRedisClient().hgetall(tagKey)
-    if (!existingTag || existingTag.userId !== session.user.id) {
+    if (!existingTag || existingTag.userId !== user.id) {
       return NextResponse.json(
         { error: "Tag not found or access denied" },
         { status: 404 }

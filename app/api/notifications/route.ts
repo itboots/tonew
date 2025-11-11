@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/simple-auth"
+import { createClient } from "@/lib/supabase/server"
 import { client } from "@/lib/redis"
 import { Notification } from "@/types"
 
@@ -13,14 +13,17 @@ function getRedisClient() {
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     // Use a different approach since Upstash Redis doesn't support zrevrange
     // We'll store notifications in a simple list and sort them by timestamp
-    const notificationsPattern = `notification:${session.user.id}:*`
+    const notificationsPattern = `notification:${user.id}:*`
     const notificationIds = await getRedisClient().keys(notificationsPattern)
 
     // Get all notification data and sort by timestamp
@@ -54,8 +57,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -68,13 +74,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const notificationId = `${session.user.id}:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const notificationId = `${user.id}:${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const notificationKey = `notification:${notificationId}`
-    const notificationsKey = `user:${session.user.id}:notifications`
+    const notificationsKey = `user:${user.id}:notifications`
 
     const notification: Notification = {
       id: notificationId,
-      userId: session.user.id,
+      userId: user.id,
       type: type as 'new_content' | 'favorite_tag' | 'system',
       title,
       message,
@@ -90,7 +96,7 @@ export async function POST(request: NextRequest) {
     await getRedisClient().expire(notificationKey, 60 * 60 * 24 * 30)
 
     // Publish to Redis pub/sub for real-time delivery
-    await getRedisClient().publish(`user:${session.user.id}:notifications`, JSON.stringify(notification))
+    await getRedisClient().publish(`user:${user.id}:notifications`, JSON.stringify(notification))
 
     return NextResponse.json({
       success: true,
@@ -107,8 +113,11 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -146,8 +155,11 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+
+    // 获取当前用户
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -162,7 +174,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const notificationKey = `notification:${notificationId}`
-    const notificationsKey = `user:${session.user.id}:notifications`
+    const notificationsKey = `user:${user.id}:notifications`
 
     // Remove notification
     await getRedisClient().del(notificationKey)

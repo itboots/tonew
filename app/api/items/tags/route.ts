@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
+import { createClient } from "@/lib/supabase/server"
 import { client } from "@/lib/redis"
 
 // Helper function to ensure Redis client is available
@@ -12,8 +12,9 @@ function getRedisClient() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -26,12 +27,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const favoriteId = `${session.user.id}:${itemId}`
+    const favoriteId = `${user.id}:${itemId}`
     const favoriteKey = `favorite:${favoriteId}`
 
     // Verify favorite exists and belongs to user
     const favorite = await getRedisClient().hgetall(favoriteKey)
-    if (!favorite || favorite.userId !== session.user.id) {
+    if (!favorite || favorite.userId !== user.id) {
       return NextResponse.json(
         { error: "Favorite item not found or access denied" },
         { status: 404 }
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify all tags belong to user
-    const tagsKey = `user:${session.user.id}:tags`
+    const tagsKey = `user:${user.id}:tags`
     const userTagIds = await getRedisClient().smembers(tagsKey)
 
     for (const tagId of tagIds) {
@@ -75,8 +76,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
@@ -91,12 +93,12 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const favoriteId = `${session.user.id}:${itemId}`
+    const favoriteId = `${user.id}:${itemId}`
     const favoriteKey = `favorite:${favoriteId}`
 
     // Verify favorite exists and belongs to user
     const favorite = await getRedisClient().hgetall(favoriteKey)
-    if (!favorite || favorite.userId !== session.user.id) {
+    if (!favorite || favorite.userId !== user.id) {
       return NextResponse.json(
         { error: "Favorite item not found or access denied" },
         { status: 404 }

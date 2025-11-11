@@ -24,10 +24,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       loadThemePreference();
     } else {
       // 未登录用户从 localStorage 加载
-      const savedTheme = localStorage.getItem('theme') as Theme;
-      if (savedTheme) {
-        setThemeState(savedTheme);
-        applyTheme(savedTheme);
+      if (typeof window !== 'undefined') {
+        const savedTheme = localStorage.getItem('theme') as Theme;
+        if (savedTheme) {
+          setThemeState(savedTheme);
+          applyTheme(savedTheme);
+        }
       }
       setIsLoading(false);
     }
@@ -55,7 +57,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(newTheme);
 
     // 保存到 localStorage
-    localStorage.setItem('theme', newTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newTheme);
+    }
 
     // 如果用户已登录，保存到服务器
     if (user) {
@@ -77,13 +81,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   const applyTheme = (themeToApply: Theme) => {
-    document.documentElement.setAttribute('data-theme', themeToApply);
+    if (typeof window !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', themeToApply);
+    }
   };
 
-  if (isLoading) {
-    return <>{children}</>;
-  }
-
+  // 始终提供 context value，即使在 loading 期间
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}

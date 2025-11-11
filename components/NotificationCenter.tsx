@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useSession } from "next-auth/react"
+import { useUser } from "@/contexts/UserContext"
 import { Notification } from "@/types"
 import { notificationService } from "@/lib/notifications"
 import HologramPanel from "./HologramPanel"
 import CyberButton from "./CyberButton"
 
 export default function NotificationCenter() {
-  const { data: session } = useSession()
+  const { user } = useUser()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
@@ -17,17 +17,17 @@ export default function NotificationCenter() {
 
   // Load initial notifications
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       loadNotifications()
     }
-  }, [session])
+  }, [user])
 
   // Subscribe to real-time notifications
   useEffect(() => {
-    if (!session?.user?.email) return
+    if (!user?.email) return
 
     const unsubscribe = notificationService.subscribe(
-      session.user.email,
+      user.email,
       (notification: Notification) => {
         setNotifications(prev => [notification, ...prev.slice(0, 49)]) // Keep latest 50
         setUnreadCount(prev => prev + 1)
@@ -35,7 +35,7 @@ export default function NotificationCenter() {
     )
 
     return unsubscribe
-  }, [session])
+  }, [user])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function NotificationCenter() {
   }, [])
 
   const loadNotifications = async () => {
-    if (!session?.user) return
+    if (!user) return
 
     setIsLoading(true)
     try {
@@ -113,7 +113,7 @@ export default function NotificationCenter() {
     }
   }
 
-  if (!session) {
+  if (!user) {
     return null
   }
 

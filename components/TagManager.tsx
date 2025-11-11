@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { useUser } from "@/contexts/UserContext"
 import { Tag } from "@/types"
 import HologramPanel from "./HologramPanel"
 import CyberButton from "./CyberButton"
@@ -17,7 +17,7 @@ export default function TagManager({
   onTagsChange,
   allowSelection = true,
 }: TagManagerProps) {
-  const { data: session } = useSession()
+  const { user } = useUser()
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -37,13 +37,13 @@ export default function TagManager({
   ]
 
   useEffect(() => {
-    if (session?.user) {
+    if (user) {
       loadTags()
     }
-  }, [session])
+  }, [user])
 
   const loadTags = async () => {
-    if (!session?.user) return
+    if (!user) return
 
     setIsLoading(true)
     try {
@@ -126,7 +126,7 @@ export default function TagManager({
     onTagsChange(newSelection)
   }
 
-  if (!session) {
+  if (!user) {
     return (
       <HologramPanel className="p-4 text-center">
         <p className="text-gray-400">Please sign in to manage tags</p>

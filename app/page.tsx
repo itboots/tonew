@@ -563,70 +563,74 @@ export default function Home() {
               {!selectedCategory && (
                 <div className="hidden md:block">
                   {categoryGroupedData.size > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       {Array.from(categoryGroupedData.entries()).map(([category, categoryItems]) => {
                         const display = getCategoryDisplay(category);
                         return (
-                          <div key={category} className="apple-card p-4">
+                          <div key={category} className="apple-card p-5">
                             {/* 分类标题 */}
                             <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-3">
                                 <span className="text-2xl">{display.icon}</span>
                                 <h3 className="text-lg font-semibold" style={{color: 'var(--text-primary)'}}>
-                                  {display.name}
+                                  {category}
                                 </h3>
-                                <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                                  backgroundColor: 'var(--apple-orange)',
-                                  color: 'white'
-                                }}>
-                                  {categoryItems.length}
+                                <span className="text-xs" style={{color: 'var(--text-tertiary)'}}>
+                                  (更新时间: {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })})
                                 </span>
                               </div>
+                              <span className="px-3 py-1 rounded text-xs font-medium" style={{
+                                backgroundColor: 'var(--apple-orange)',
+                                color: 'white'
+                              }}>
+                                {display.name}
+                              </span>
                             </div>
 
                             {/* 分类内容列表 */}
-                            <div className="space-y-2">
+                            <div className="space-y-0">
                               {categoryItems.map((item, index) => (
                                 <Link
                                   key={item.id}
                                   href={item.link}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="block p-3 rounded-lg hover:bg-[var(--gray-1)] transition-colors"
+                                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--gray-1)] transition-colors rounded-lg"
                                 >
-                                  <div className="flex items-start gap-3">
-                                    <span className="text-sm font-bold mt-0.5" style={{
-                                      color: index < 3 ? 'var(--apple-orange)' : 'var(--text-tertiary)',
-                                      minWidth: '20px'
-                                    }}>
-                                      {index + 1}
+                                  {/* 序号 */}
+                                  <span
+                                    className="flex-shrink-0 w-6 text-center text-sm font-bold"
+                                    style={{
+                                      color: index < 3 ? 'var(--apple-orange)' : 'var(--text-tertiary)'
+                                    }}
+                                  >
+                                    {index + 1}
+                                  </span>
+
+                                  {/* 标题 */}
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-sm font-medium truncate" style={{color: 'var(--text-primary)'}}>
+                                      {item.title}
+                                    </h4>
+                                  </div>
+
+                                  {/* 热度 */}
+                                  <div className="flex items-center gap-1 text-xs" style={{color: 'var(--apple-orange)'}}>
+                                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-medium">
+                                      {item.hotness ?
+                                        item.hotness >= 10000 ?
+                                          `${(item.hotness / 10000).toFixed(1)}万` :
+                                          item.hotness.toLocaleString()
+                                        : `${item.importance.toFixed(1)}`
+                                      }
                                     </span>
-                                    <div className="flex-1 min-w-0">
-                                      <h4 className="text-sm font-medium line-clamp-2" style={{color: 'var(--text-primary)'}}>
-                                        {item.title}
-                                      </h4>
-                                      {item.description && (
-                                        <p className="text-xs mt-1 line-clamp-1" style={{color: 'var(--text-tertiary)'}}>
-                                          {item.description}
-                                        </p>
-                                      )}
-                                    </div>
                                   </div>
                                 </Link>
                               ))}
                             </div>
-
-                            {/* 查看更多 */}
-                            <button
-                              onClick={() => handleCategoryChange(category)}
-                              className="w-full mt-3 py-2 text-sm font-medium rounded-lg transition-colors hover:bg-[var(--gray-2)]"
-                              style={{
-                                color: 'var(--apple-blue)',
-                                backgroundColor: 'var(--gray-1)'
-                              }}
-                            >
-                              查看更多 {display.name} 内容
-                            </button>
                           </div>
                         );
                       })}

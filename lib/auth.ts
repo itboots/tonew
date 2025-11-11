@@ -27,23 +27,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           // Check if user exists in Redis
           const userKey = `user:${credentials.email}`
-          const existingUser = await getRedisClient().hgetall(userKey)
+          const existingUser = await getRedisClient().hgetall(userKey) as Record<string, string>
 
           if (existingUser && existingUser.email) {
             // In production, verify password hash
             return {
-              id: String(existingUser.id || existingUser.email),
-              email: String(existingUser.email),
-              name: String(existingUser.name || existingUser.email),
+              id: existingUser.id || existingUser.email,
+              email: existingUser.email,
+              name: existingUser.name || existingUser.email,
             }
           }
 
           // Create new user for demo purposes
           // In production, you'd hash the password
           const newUser = {
-            id: credentials.email as string,
-            email: credentials.email as string,
-            name: credentials.name as string || credentials.email as string,
+            id: credentials.email,
+            email: credentials.email,
+            name: (credentials.name || credentials.email) as string,
           }
 
           // Store user in Redis

@@ -13,14 +13,13 @@ export class NotificationService {
   }
 
   // Subscribe to notifications for a user
+  // Note: Upstash Redis REST API doesn't support pub/sub subscriptions
+  // Clients should poll for new notifications instead
   subscribe(userId: string, callback: (notification: Notification) => void) {
     if (!this.subscriptions.has(userId)) {
       this.subscriptions.set(userId, new Set())
     }
     this.subscriptions.get(userId)!.add(callback)
-
-    // Start Redis subscription if not already started for this user
-    this.startRedisSubscription(userId)
 
     // Return unsubscribe function
     return () => {
@@ -31,36 +30,6 @@ export class NotificationService {
           this.subscriptions.delete(userId)
         }
       }
-    }
-  }
-
-  private async startRedisSubscription(userId: string) {
-    const channel = `user:${userId}:notifications`
-
-    try {
-      // Check if Redis client is available
-      if (!client) {
-        console.warn("⚠️ Redis客户端未配置，跳过实时通知订阅")
-        return
-      }
-
-      // Create a new Redis client for subscription (regular clients can't subscribe)
-      const subscriber = client.duplicate()
-      await subscriber.connect()
-
-      await subscriber.subscribe(channel, (message) => {
-        try {
-          const notification: Notification = JSON.parse(message)
-          const callbacks = this.subscriptions.get(userId)
-          if (callbacks) {
-            callbacks.forEach(callback => callback(notification))
-          }
-        } catch (error) {
-          console.error("Error parsing notification message:", error)
-        }
-      })
-    } catch (error) {
-      console.error("Error setting up Redis subscription:", error)
     }
   }
 
@@ -95,15 +64,15 @@ export class NotificationService {
       }
 
       // Save notification
-      await client.hset(notificationKey, notification)
-      await client.zadd(notificationsKey, Date.now(), notificationId)
+      await client.hset(notificationKey, notification as unknown as Record<string, unknown>)
+      await client.zadd(notificationsKey, { score: Date.now(), member: notificationId })
 
       // Set expiration (30 days)
       await client.expire(notificationKey, 60 * 60 * 24 * 30)
       await client.expire(notificationsKey, 60 * 60 * 24 * 30)
 
-      // Publish to Redis pub/sub for real-time delivery
-      await client.publish(`user:${userId}:notifications`, JSON.stringify(notification))
+      // Note: Upstash Redis REST API doesn't support pub/sub
+      // Clients should poll for notifications instead
 
       return true
     } catch (error) {

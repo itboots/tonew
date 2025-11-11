@@ -57,7 +57,7 @@ export async function signIn(credentials: {
 
     if (response.ok) {
       currentSession = await response.json()
-      return { success: true, user: currentSession.user }
+      return { success: true, user: currentSession?.user || undefined }
     } else {
       return { success: false, error: 'Invalid credentials' }
     }

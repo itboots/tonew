@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Redis } from '@upstash/redis';
-
-// 初始化 Redis 客户端
-const redis = Redis.fromEnv();
+import { client as redis, isRedisAvailable } from '@/lib/redis';
 
 const DISMISSED_ITEMS_KEY = 'dismissed_items';
 
 export async function POST(request: NextRequest) {
   try {
+    // 检查 Redis 是否可用
+    if (!isRedisAvailable() || !redis) {
+      return NextResponse.json(
+        { success: false, error: 'Redis 服务不可用' },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { itemId } = body;
 
@@ -31,9 +36,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('记录已滑掉条目失败:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : '记录失败' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : '记录失败'
       },
       { status: 500 }
     );
@@ -43,6 +48,14 @@ export async function POST(request: NextRequest) {
 // 获取所有已滑掉的条目ID
 export async function GET(request: NextRequest) {
   try {
+    // 检查 Redis 是否可用
+    if (!isRedisAvailable() || !redis) {
+      return NextResponse.json(
+        { success: false, error: 'Redis 服务不可用' },
+        { status: 503 }
+      );
+    }
+
     const dismissedIds = await redis.smembers(DISMISSED_ITEMS_KEY);
 
     return NextResponse.json({
@@ -53,9 +66,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('获取已滑掉条目失败:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : '获取失败' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : '获取失败'
       },
       { status: 500 }
     );
@@ -65,6 +78,14 @@ export async function GET(request: NextRequest) {
 // 清空已滑掉的条目（可选，用于测试）
 export async function DELETE(request: NextRequest) {
   try {
+    // 检查 Redis 是否可用
+    if (!isRedisAvailable() || !redis) {
+      return NextResponse.json(
+        { success: false, error: 'Redis 服务不可用' },
+        { status: 503 }
+      );
+    }
+
     await redis.del(DISMISSED_ITEMS_KEY);
 
     return NextResponse.json({
@@ -74,9 +95,9 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('清空已滑掉条目失败:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : '清空失败' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : '清空失败'
       },
       { status: 500 }
     );

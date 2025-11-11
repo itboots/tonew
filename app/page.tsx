@@ -51,13 +51,12 @@ export default function Home() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await fetch('/api/scrape?page=1&pageSize=258');
-      const data: ScrapeResponse = await response.json();
+      const response = await fetch('/api/categories');
+      const data = await response.json();
 
       if (data.success && data.data) {
-        const categories = [...new Set(data.data.map(item => item.category).filter(Boolean))];
-        setAvailableCategories(categories.sort());
-        console.log('📋 获取到分类列表:', categories);
+        setAvailableCategories(data.data);
+        console.log('📋 获取到分类列表:', data.data.length, '个分类');
       }
     } catch (error) {
       console.error('获取分类列表失败:', error);
@@ -153,23 +152,13 @@ export default function Home() {
 
       if (data.success) {
         console.log(`✅ 条目 ${itemId} 已记录为已滑掉`);
-        
-        // 尝试加载下一条数据
-        if (hasMore) {
-          try {
-            const nextPageToLoad = Math.ceil((items.length + 1) / 20);
-            await fetchContent(false, nextPageToLoad);
-          } catch (error) {
-            console.warn('⚠️ 加载下一条失败:', error);
-          }
-        }
       } else {
         console.error('❌ 记录失败:', data.error);
       }
     } catch (error) {
       console.error('❌ 调用API失败:', error);
     }
-  }, [items.length, hasMore, fetchContent]);
+  }, []);
   
   const loadMore = useCallback(async () => {
     if (!hasMore || loading || loadingMoreRef.current) return;
@@ -186,17 +175,22 @@ export default function Home() {
     }
   }, [currentPage, fetchContent, hasMore, loading]);
 
+  // 初始化：仅在组件挂载时执行一次
   useEffect(() => {
-    fetchCategories(); // 获取分类列表
+    fetchCategories();
     fetchContent(false, 1);
     fetchCacheStatus();
+  }, [fetchCategories, fetchContent, fetchCacheStatus]);
 
-    // 每30秒检查一次缓存状态
+  // 定时刷新缓存状态
+  useEffect(() => {
     const interval = setInterval(fetchCacheStatus, 30000);
+    return () => clearInterval(interval);
+  }, [fetchCacheStatus]);
 
-    // 监听页面导航事件（浏览器后退/前进/重新访问）
+  // 监听页面导航事件
+  useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
-      // 如果页面是从缓存中恢复的，重新加载数据
       if (event.persisted) {
         console.log('🔄 页面从缓存恢复，重新加载数据');
         fetchContent(false, 1);
@@ -204,47 +198,46 @@ export default function Home() {
       }
     };
 
-    // 监听浏览器后退/前进事件
     const handlePopState = () => {
       console.log('🔄 浏览器导航事件，重新加载数据');
       fetchContent(false, 1);
       fetchCacheStatus();
     };
 
-    // 监听页面可见性变化（从其他标签页切换回来时）
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [fetchContent, fetchCacheStatus]);
+
+  // 监听页面可见性变化
+  useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log('🔄 页面重新可见，检查并刷新数据');
         fetchCacheStatus();
-        // 获取当前状态，如果数据过期或为空则重新加载
         if (items.length === 0 || !cacheStatus?.isValid) {
           fetchContent(false, 1);
         }
       }
     };
 
-    // 监听窗口获得焦点事件
     const handleWindowFocus = () => {
       console.log('🔄 窗口获得焦点，检查数据状态');
       fetchCacheStatus();
     };
 
-    // 添加事件监听器
-    window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
 
-    // 清理函数
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleWindowFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchCategories]);
+  }, [items.length, cacheStatus?.isValid, fetchContent, fetchCacheStatus]);
 
   useEffect(() => {
     if (!hasMore) return;

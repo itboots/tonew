@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ValueItem } from '@/types';
 import FavoriteButton from './FavoriteButton';
 
@@ -16,6 +16,9 @@ export default function ContentCard({ item, onDismiss }: ContentCardProps) {
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // 保存清理函数的引用
+  const cleanupFunctionsRef = useRef<Array<() => void>>([]);
   
   // 根据重要性设置现代化配色方案
   const getColors = () => {
@@ -197,11 +200,31 @@ export default function ContentCard({ item, onDismiss }: ContentCardProps) {
       touchStartX.current = 0;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+
+      // 从清理函数列表中移除
+      cleanupFunctionsRef.current = cleanupFunctionsRef.current.filter(fn => fn !== cleanup);
+    };
+
+    const cleanup = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+
+    // 添加到清理函数列表
+    cleanupFunctionsRef.current.push(cleanup);
   };
+
+  // 组件卸载时清理所有事件监听器
+  useEffect(() => {
+    return () => {
+      // 执行所有待清理的函数
+      cleanupFunctionsRef.current.forEach(cleanup => cleanup());
+      cleanupFunctionsRef.current = [];
+    };
+  }, []);
 
   return (
     <div

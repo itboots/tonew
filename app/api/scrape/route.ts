@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ScraperService } from '@/lib/scraper';
-import { ScrapeResponse, ErrorType } from '@/types';
+import { ScrapeResponse, ErrorType, ValueItem } from '@/types';
 import { RedisCache } from '@/lib/redis';
-import { Redis } from '@upstash/redis';
-
-const redis = Redis.fromEnv();
-const DISMISSED_ITEMS_KEY = 'dismissed_items';
+import { getDismissedItemIds, filterDismissedItems } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,25 +17,11 @@ export async function GET(request: NextRequest) {
     console.log(`🔄 API 请求 - 强制刷新: ${forceRefresh}, 页码: ${page}, 每页: ${pageSize}, 分类: ${decodedCategory || '全部'}`);
 
     // 获取已滑掉的条目ID列表
-    let dismissedIds: string[] = [];
-    try {
-      const ids = await redis.smembers(DISMISSED_ITEMS_KEY);
-      dismissedIds = (ids || []) as string[];
-      console.log(`🚫 已滑掉的条目数量: ${dismissedIds.length}`);
-    } catch (error) {
-      console.warn('⚠️ 获取已滑掉条目失败:', error);
-    }
+    const dismissedIds = await getDismissedItemIds();
 
-    // 过滤函数：移除已滑掉的条目
-    const filterDismissed = (items: any[]) => {
-      if (dismissedIds.length === 0) return items;
-      return items.filter(item => !dismissedIds.includes(item.id));
-    };
-
-    
-    let paginatedItems: any[] = [];
+    let paginatedItems: ValueItem[] = [];
     let total = 0;
-    let lastUpdate = null;
+    let lastUpdate: string | null = null;
     let shouldUpdate = false;
 
     // 分类过滤时绕过Redis，直接获取最新数据并按热度排序
@@ -48,7 +31,7 @@ export async function GET(request: NextRequest) {
       const allItems = await scraper.scrapeAndProcess(false, decodedCategory);
 
       // 过滤已滑掉的条目
-      const filteredItems = filterDismissed(allItems);
+      const filteredItems = filterDismissedItems(allItems, dismissedIds);
       console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
 
       // 分页处理
@@ -64,7 +47,7 @@ export async function GET(request: NextRequest) {
       const allItems = await scraper.scrapeAndProcess(true);
 
       // 过滤已滑掉的条目
-      const filteredItems = filterDismissed(allItems);
+      const filteredItems = filterDismissedItems(allItems, dismissedIds);
       console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
 
       // 存储到Redis（如果可用）
@@ -90,7 +73,7 @@ export async function GET(request: NextRequest) {
         const allItems = await scraper.scrapeAndProcess(false);
 
         // 过滤已滑掉的条目
-        const filteredItems = filterDismissed(allItems);
+        const filteredItems = filterDismissedItems(allItems, dismissedIds);
         console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
 
         // 存储到Redis（如果可用）
@@ -118,7 +101,7 @@ export async function GET(request: NextRequest) {
           const allItems = await scraper.scrapeAndProcess(false);
 
           // 过滤已滑掉的条目
-          const filteredItems = filterDismissed(allItems);
+          const filteredItems = filterDismissedItems(allItems, dismissedIds);
           console.log(`✅ 过滤后剩余 ${filteredItems.length} / ${allItems.length} 条`);
 
           // 尝试存储到Redis

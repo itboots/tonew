@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to Redis
-    await getRedisClient().hset(favoriteKey, favoriteItem)
+    await getRedisClient().hset(favoriteKey, favoriteItem as unknown as Record<string, unknown>)
     await getRedisClient().sadd(favoritesKey, favoriteId)
 
     // Set expiration (30 days)

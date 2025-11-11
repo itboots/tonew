@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save notification
-    await getRedisClient().hset(notificationKey, notification as Record<string, unknown>)
+    await getRedisClient().hset(notificationKey, notification as unknown as Record<string, unknown>)
 
     // Set expiration (30 days)
     await getRedisClient().expire(notificationKey, 60 * 60 * 24 * 30)

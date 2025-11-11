@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     for (const tagId of existingTags) {
       const tagData = await getRedisClient().hgetall(`tag:${tagId}`)
-      if (tagData.name === name) {
+      if (tagData && tagData.name === name) {
         return NextResponse.json(
           { error: "Tag with this name already exists" },
           { status: 409 }
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save tag
-    await getRedisClient().hset(tagKey, tag)
+    await getRedisClient().hset(tagKey, tag as unknown as Record<string, unknown>)
     await getRedisClient().sadd(tagsKey, tagId)
 
     // Set expiration (30 days)
@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest) {
       for (const existingTagId of existingTags) {
         if (existingTagId !== tagId) {
           const tagData = await getRedisClient().hgetall(`tag:${existingTagId}`)
-          if (tagData.name === name) {
+          if (tagData && tagData.name === name) {
             return NextResponse.json(
               { error: "Tag with this name already exists" },
               { status: 409 }
@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
     if (name) updates.name = name.trim()
     if (color) updates.color = color
 
-    await getRedisClient().hset(tagKey, updates)
+    await getRedisClient().hset(tagKey, updates as unknown as Record<string, unknown>)
 
     // Get updated tag
     const updatedTag = await getRedisClient().hgetall(tagKey)

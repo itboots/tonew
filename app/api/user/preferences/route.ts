@@ -59,7 +59,7 @@ export async function PUT(request: NextRequest) {
     const updatedPreferences = { ...current, ...updates }
 
     // Save to Redis
-    await getRedisClient().hset(preferencesKey, updatedPreferences)
+    await getRedisClient().hset(preferencesKey, updatedPreferences as unknown as Record<string, unknown>)
     await getRedisClient().expire(preferencesKey, 60 * 60 * 24 * 30) // 30 days
 
     return NextResponse.json({

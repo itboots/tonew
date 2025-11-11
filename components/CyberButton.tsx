@@ -3,19 +3,23 @@
 import { useState } from 'react';
 
 interface CyberButtonProps {
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
   loading?: boolean;
   variant?: 'primary' | 'accent' | 'outline';
   className?: string;
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
 }
 
-export default function CyberButton({ 
-  onClick, 
-  children, 
-  loading = false, 
+export default function CyberButton({
+  onClick,
+  children,
+  loading = false,
   variant = 'primary',
-  className = ''
+  className = '',
+  type = 'button',
+  disabled = false
 }: CyberButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -29,8 +33,9 @@ export default function CyberButton({
 
   return (
     <button
+      type={type}
       onClick={onClick}
-      disabled={loading}
+      disabled={disabled || loading}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`${baseClasses} ${variantClasses[variant]} ${className}`}

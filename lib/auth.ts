@@ -32,9 +32,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (existingUser && existingUser.email) {
             // In production, verify password hash
             return {
-              id: existingUser.id,
-              email: existingUser.email,
-              name: existingUser.name,
+              id: String(existingUser.id || existingUser.email),
+              email: String(existingUser.email),
+              name: String(existingUser.name || existingUser.email),
             }
           }
 

@@ -33,6 +33,9 @@ export default function Home() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
 
+  // 分类数据缓存
+  const categoryCache = useRef<Map<string | null, ValueItem[]>>(new Map());
+
   // 搜索相关状态
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredItems, setFilteredItems] = useState<ValueItem[]>([]);
@@ -93,7 +96,8 @@ export default function Home() {
   }, []);
 
   const fetchContent = useCallback(async (forceRefresh: boolean = false, page: number = 1) => {
-    if (page === 1) {
+    // 只有首次加载或强制刷新时显示 loading
+    if (page === 1 && !categoryCache.current.has(selectedCategory)) {
       setLoading(true);
       setError(null);
     }
@@ -121,6 +125,8 @@ export default function Home() {
         if (page === 1) {
           setItems(data.data);
           setCurrentPage(1);
+          // 更新缓存
+          categoryCache.current.set(selectedCategory, data.data);
         } else {
           setItems(prev => [...prev, ...(data.data || [])]);
         }
@@ -193,7 +199,15 @@ export default function Home() {
     setSelectedCategory(category);
     setCurrentPage(1); // 重置页码
     setHasMore(true); // 重置加载更多状态
-    // 立即获取新数据
+
+    // 乐观更新：先显示缓存数据（如果有）
+    const cachedData = categoryCache.current.get(category);
+    if (cachedData && cachedData.length > 0) {
+      setItems(cachedData);
+      console.log(`✨ 使用缓存数据，共 ${cachedData.length} 条`);
+    }
+
+    // 后台加载最新数据
     fetchContent(false, 1);
   }, [fetchContent]);
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser } from "@/contexts/UserContext"
 import { ValueItem } from "@/types"
 
@@ -9,43 +9,115 @@ interface FavoriteButtonProps {
   className?: string
 }
 
+// 全局收藏缓存，避免每个按钮都请求一次
+let favoriteCachePromise: Promise<Set<string>> | null = null
+let favoriteCache: Set<string> | null = null
+
+const getFavoriteIds = async (): Promise<Set<string>> => {
+  // 如果缓存存在，直接返回
+  if (favoriteCache) return favoriteCache
+
+  // 如果正在加载，等待加载完成
+  if (favoriteCachePromise) return favoriteCachePromise
+
+  // 开始加载
+  favoriteCachePromise = (async () => {
+    try {
+      const response = await fetch("/api/user/favorites")
+      if (response.ok) {
+        const data = await response.json()
+        const ids = new Set<string>(data.data?.map((fav: any) => fav.id) || [])
+        favoriteCache = ids
+        return ids
+      }
+    } catch (error) {
+      console.error("Failed to load favorites:", error)
+    }
+    return new Set<string>()
+  })()
+
+  return favoriteCachePromise
+}
+
+// 清除缓存函数
+export const clearFavoriteCache = () => {
+  favoriteCache = null
+  favoriteCachePromise = null
+}
+
 export default function FavoriteButton({ item, className = "" }: FavoriteButtonProps) {
   const { user } = useUser()
   const [isLoading, setIsLoading] = useState(false)
   const [isFavorited, setIsFavorited] = useState(false)
 
-  const handleFavorite = async () => {
+  // 检查收藏状态
+  useEffect(() => {
     if (!user) {
-      console.log("Please sign in to favorite items")
+      setIsFavorited(false)
+      return
+    }
+
+    const checkFavoriteStatus = async () => {
+      const ids = await getFavoriteIds()
+      setIsFavorited(ids.has(item.id))
+    }
+
+    checkFavoriteStatus()
+  }, [user, item.id])
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    // 阻止事件冒泡，避免触发卡片点击
+    e.stopPropagation()
+    e.preventDefault()
+
+    if (!user) {
+      alert("请先登录以使用收藏功能")
       return
     }
 
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/user/favorites", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          item,
-        }),
-      })
+      if (isFavorited) {
+        // 取消收藏
+        const response = await fetch(`/api/user/favorites?itemId=${item.id}`, {
+          method: "DELETE",
+        })
 
-      if (response.ok) {
-        setIsFavorited(true)
-        // Show success feedback
-        setTimeout(() => setIsFavorited(false), 2000)
+        if (response.ok) {
+          setIsFavorited(false)
+          favoriteCache?.delete(item.id)
+          console.log("✅ 取消收藏成功")
+        }
       } else {
-        const data = await response.json()
-        if (data.error === "Item already favorited") {
+        // 添加收藏
+        const response = await fetch("/api/user/favorites", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            item,
+          }),
+        })
+
+        if (response.ok) {
           setIsFavorited(true)
-          setTimeout(() => setIsFavorited(false), 2000)
+          favoriteCache?.add(item.id)
+          console.log("✅ 收藏成功")
+        } else {
+          const data = await response.json()
+          if (data.error === "Item already favorited") {
+            setIsFavorited(true)
+            favoriteCache?.add(item.id)
+          } else {
+            alert("收藏失败：" + data.error)
+          }
         }
       }
     } catch (error) {
       console.error("Failed to favorite item:", error)
+      alert("操作失败，请重试")
     } finally {
       setIsLoading(false)
     }
@@ -54,12 +126,17 @@ export default function FavoriteButton({ item, className = "" }: FavoriteButtonP
   if (!user) {
     return (
       <button
-        onClick={() => console.log("Sign in to favorite")}
-        className={`p-2 border border-gray-600 rounded-lg hover:border-cyan-500 hover:bg-cyan-950/30 transition-all group ${className}`}
-        title="Sign in to favorite"
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+          alert("请先登录以使用收藏功能")
+        }}
+        className={`p-1.5 sm:p-2 rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-gray-800 ${className}`}
+        title="登录后使用"
       >
         <svg
-          className="w-5 h-5 text-gray-500 group-hover:text-cyan-400"
+          className="w-4 h-4 sm:w-5 sm:h-5"
+          style={{ color: 'var(--text-tertiary)' }}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -78,17 +155,18 @@ export default function FavoriteButton({ item, className = "" }: FavoriteButtonP
   return (
     <button
       onClick={handleFavorite}
-      disabled={isLoading || isFavorited}
-      className={`p-2 border rounded-lg transition-all transform hover:scale-105 ${
+      disabled={isLoading}
+      className={`p-1.5 sm:p-2 rounded-lg transition-all transform hover:scale-110 ${
         isFavorited
-          ? "border-yellow-500 bg-yellow-950/50"
-          : "border-gray-600 hover:border-cyan-500 hover:bg-cyan-950/30"
+          ? "bg-yellow-50 dark:bg-yellow-950/30"
+          : "hover:bg-gray-100 dark:hover:bg-gray-800"
       } ${isLoading ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
-      title={isFavorited ? "Favorited!" : "Add to favorites"}
+      title={isFavorited ? "取消收藏" : "添加收藏"}
     >
       {isFavorited ? (
         <svg
-          className="w-5 h-5 text-yellow-400"
+          className="w-4 h-4 sm:w-5 sm:h-5"
+          style={{ color: 'var(--apple-orange)' }}
           fill="currentColor"
           viewBox="0 0 24 24"
         >
@@ -96,7 +174,8 @@ export default function FavoriteButton({ item, className = "" }: FavoriteButtonP
         </svg>
       ) : (
         <svg
-          className="w-5 h-5 text-gray-500 hover:text-cyan-400"
+          className="w-4 h-4 sm:w-5 sm:h-5"
+          style={{ color: 'var(--text-tertiary)' }}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

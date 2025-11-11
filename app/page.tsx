@@ -4,10 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ValueItem, ScrapeResponse } from '@/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ContentList from '@/components/ContentList';
-import CyberButton from '@/components/CyberButton';
-import HologramHUD from '@/components/HologramHUD';
-import DataStream from '@/components/DataStream';
-import HologramPanel from '@/components/HologramPanel';
 import UserHeader from '@/components/UserHeader';
 import NotificationCenter from '@/components/NotificationCenter';
 import CategoryFilter from '@/components/CategoryFilter';
@@ -271,121 +267,76 @@ export default function Home() {
   }, [hasMore, loadMore]);
 
   return (
-    <main className="min-h-screen p-3 sm:p-4 lg:p-6 relative">
-        {/* JARVIS全息HUD效果 */}
-        <HologramHUD />
-
-        {/* 数据流效果 */}
-        <DataStream />
-
-        <div className="max-w-5xl mx-auto relative" style={{ zIndex: 10 }}>
-          {/* Navigation Header */}
-          <nav className="flex items-center justify-between mb-6 relative z-20">
-            <div className="flex items-center space-x-6">
-              <h1 className="text-2xl font-bold text-cyan-400 tracking-wider">
-                CONTENT MONITOR
-              </h1>
-              <div className="hidden sm:flex items-center space-x-4">
-                <Link href="/" className="text-cyan-300 hover:text-cyan-400 transition-colors">
-                  Dashboard
-                </Link>
-                <Link href="/favorites" className="text-cyan-300 hover:text-cyan-400 transition-colors">
-                  Favorites
-                </Link>
-              </div>
+    <main className="min-h-screen">
+      {/* Apple 风格导航栏 */}
+      <nav className="apple-nav sticky top-0 z-50 px-4 py-3">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-6">
+            <h1 className="text-xl font-semibold" style={{color: 'var(--text-primary)'}}>
+              热门内容
+            </h1>
+            <div className="hidden sm:flex items-center space-x-4">
+              <Link
+                href="/"
+                className="text-sm font-medium transition-colors"
+                style={{color: 'var(--apple-blue)'}}
+              >
+                首页
+              </Link>
+              <Link
+                href="/favorites"
+                className="text-sm font-medium transition-colors"
+                style={{color: 'var(--text-secondary)'}}
+              >
+                收藏
+              </Link>
             </div>
-            <div className="flex items-center space-x-4">
-              <NotificationCenter />
-              <UserHeader />
-            </div>
-          </nav>
-        {/* 主容器霓虹边框 */}
-        <div 
-          className="absolute inset-0 rounded-lg pointer-events-none animate-pulse"
-          style={{
-            background: 'linear-gradient(135deg, rgba(0,255,255,0.05) 0%, transparent 50%, rgba(255,0,255,0.05) 100%)',
-            boxShadow: `
-              0 0 40px rgba(0, 255, 255, 0.3),
-              0 0 80px rgba(255, 0, 255, 0.2),
-              inset 0 0 40px rgba(0, 255, 255, 0.1)
-            `,
-            border: '1px solid rgba(0, 255, 255, 0.3)',
-          }}
-        />
-        {/* 头部 - 优化后更简洁的设计 */}
-        <header className="text-center mb-6 sm:mb-8 relative z-10">
-          {/* 顶部光晕效果 */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-20 bg-cyan-500/15 rounded-full blur-3xl animate-pulse" />
-
-          {/* 简洁的状态指示器 */}
-          <div className="relative inline-block px-4 py-2 mb-4">
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 blur-lg" />
-            <p className="relative text-cyan-300 text-xs sm:text-sm font-medium tracking-widest font-mono">
-              <span className="text-cyan-400">[ACTIVE]</span>
-              <span className="mx-2 text-cyan-400/40">•</span>
-              <span className="text-cyan-400">MONITORING</span>
-            </p>
           </div>
+          <div className="flex items-center space-x-3">
+            <NotificationCenter />
+            <UserHeader />
+          </div>
+        </div>
+      </nav>
 
-          {/* 缓存状态显示 - 全息面板 */}
-          {cacheStatus && (
-            <div className="mb-6 flex justify-center">
-              <HologramPanel className="inline-block">
-                <div className="flex items-center gap-4 text-xs font-mono">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${cacheStatus.isValid ? 'bg-cyan-400' : 'bg-yellow-400'} ${cacheStatus.isValid ? 'animate-pulse' : ''}`}
-                      style={{ boxShadow: `0 0 10px ${cacheStatus.isValid ? 'rgba(0, 255, 255, 1)' : 'rgba(255, 255, 0, 1)'}` }}
-                    />
-                    <span className="text-cyan-400">{cacheStatus.isValid ? 'CACHE_VALID' : 'CACHE_EXPIRED'}</span>
-                  </div>
-                  {cacheStatus.lastUpdate && (
-                    <>
-                      <span className="text-cyan-400/40">|</span>
-                      <span className="text-cyan-300/70">UPD: {new Date(cacheStatus.lastUpdate).toLocaleTimeString()}</span>
-                    </>
-                  )}
-                  {cacheStatus.updateCount > 0 && (
-                    <>
-                      <span className="text-cyan-400/40">|</span>
-                      <span className="text-cyan-300/70">CNT: {cacheStatus.updateCount}</span>
-                    </>
-                  )}
-                </div>
-              </HologramPanel>
-            </div>
-          )}
-
-          {/* 刷新按钮组 */}
-          <div className="flex justify-center gap-3">
-            <CyberButton onClick={() => fetchContent(false)} loading={loading && !refreshing}>
-              {loading && !refreshing ? '加载中...' : '普通刷新'}
-            </CyberButton>
-            <CyberButton
-              onClick={handleRefresh}
-              loading={refreshing}
-              variant="accent"
-              className="relative"
-            >
-              {refreshing ? (
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* 缓存状态显示 */}
+        {cacheStatus && (
+          <div className="mb-6 flex justify-center">
+            <div className="glass-effect px-4 py-2 rounded-full flex items-center gap-3 text-sm">
+              <div className={`apple-status-dot ${cacheStatus.isValid ? 'bg-green-500' : 'bg-yellow-500'}`} />
+              <span style={{color: 'var(--text-secondary)'}}>
+                {cacheStatus.isValid ? '缓存有效' : '缓存过期'}
+              </span>
+              {cacheStatus.lastUpdate && (
                 <>
-                  <span className="inline-block animate-spin mr-2">⚡</span>
-                  强制刷新中...
-                </>
-              ) : (
-                <>
-                  <span className="inline-block mr-2">⚡</span>
-                  强制刷新
+                  <span style={{color: 'var(--gray-4)'}}>•</span>
+                  <span style={{color: 'var(--text-tertiary)'}}>
+                    更新于 {new Date(cacheStatus.lastUpdate).toLocaleTimeString()}
+                  </span>
                 </>
               )}
-            </CyberButton>
+            </div>
           </div>
+        )}
 
-          {/* 操作提示 */}
-          <div className="mt-4 text-center text-xs text-cyber-text/40">
-            <p>普通刷新使用缓存 • 强制刷新重新获取数据</p>
-            <p className="mt-1">系统每分钟自动更新缓存 • 每页显示20条</p>
-          </div>
-        </header>
+        {/* 操作按钮组 */}
+        <div className="mb-6 flex justify-center gap-3">
+          <button
+            onClick={() => fetchContent(false)}
+            disabled={loading && !refreshing}
+            className="apple-button-secondary"
+          >
+            {loading && !refreshing ? '加载中...' : '普通刷新'}
+          </button>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="apple-button"
+          >
+            {refreshing ? '刷新中...' : '⚡ 强制刷新'}
+          </button>
+        </div>
 
         {/* 分类过滤器 */}
         <CategoryFilter
@@ -396,38 +347,39 @@ export default function Home() {
         />
 
         {/* 内容区域 */}
-        <div className="relative z-10">
+        <div className="mt-6">
           {loading && items.length === 0 ? (
-            <LoadingSpinner message="正在扫描目标网站..." />
+            <LoadingSpinner message="正在加载内容..." />
           ) : error ? (
             <div className="text-center py-12">
-              <div className="inline-block p-6 border-2 border-red-500/50 bg-red-500/10 rounded">
-                <div className="text-4xl mb-4">⚠️</div>
-                <h3 className="text-xl font-bold text-red-400 mb-2">系统错误</h3>
-                <p className="text-cyber-text/80 mb-4">{error}</p>
-                <CyberButton onClick={() => fetchContent(false)}>
+              <div className="apple-card-large p-8 max-w-md mx-auto">
+                <div className="text-5xl mb-4">⚠️</div>
+                <h3 className="text-xl font-semibold mb-2" style={{color: 'var(--text-primary)'}}>
+                  加载失败
+                </h3>
+                <p className="mb-6" style={{color: 'var(--text-secondary)'}}>
+                  {error}
+                </p>
+                <button onClick={() => fetchContent(false)} className="apple-button">
                   重试
-                </CyberButton>
+                </button>
               </div>
             </div>
           ) : (
             <>
-              {/* 统计信息 - HUD风格 */}
+              {/* 统计信息 */}
               {items.length > 0 && (
-                <div className="mb-6 flex justify-center">
-                  <div className="inline-flex items-center gap-3 px-6 py-3 bg-cyan-500/5 border border-cyan-400/30 rounded font-mono text-sm backdrop-blur-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse" style={{ boxShadow: '0 0 8px rgba(0, 255, 255, 1)' }} />
-                      <span className="text-cyan-400">ITEMS:</span>
-                      <span className="text-cyan-300 font-bold">{items.length}</span>
-                      {totalItems > 0 && (
-                        <span className="text-cyan-400/60">/ {totalItems}</span>
-                      )}
-                    </div>
-                    {totalItems > items.length && (
+                <div className="mb-4 flex justify-center">
+                  <div className="glass-effect px-4 py-2 rounded-full flex items-center gap-3 text-sm">
+                    <span style={{color: 'var(--text-secondary)'}}>
+                      已显示
+                    </span>
+                    <span className="font-semibold" style={{color: 'var(--apple-blue)'}}>
+                      {items.length}
+                    </span>
+                    {totalItems > 0 && (
                       <>
-                        <span className="text-cyan-400/40">|</span>
-                        <span className="text-cyan-300/70">PAGE: {currentPage}</span>
+                        <span style={{color: 'var(--gray-4)'}}>/ {totalItems}</span>
                       </>
                     )}
                   </div>
@@ -447,31 +399,20 @@ export default function Home() {
 
               {/* 加载更多按钮 */}
               {hasMore && items.length > 0 && (
-                <div className="mt-8 text-center">
-                  <CyberButton
+                <div className="mt-6 text-center">
+                  <button
                     onClick={loadMore}
-                    loading={loadingMore}
-                    variant="outline"
-                    className="px-8"
+                    disabled={loadingMore}
+                    className="apple-button-secondary px-8"
                   >
-                    {loadingMore ? (
-                      <>
-                        <span className="inline-block animate-spin mr-2">⚡</span>
-                        加载中...
-                      </>
-                    ) : (
-                      <>
-                        <span className="mr-2">📄</span>
-                        加载更多
-                      </>
-                    )}
-                  </CyberButton>
+                    {loadingMore ? '加载中...' : '加载更多'}
+                  </button>
                 </div>
               )}
 
               {!hasMore && items.length > 0 && (
-                <div className="mt-8 text-center text-cyber-text/40 text-sm">
-                  <p>🎯 已显示全部内容</p>
+                <div className="mt-8 text-center text-sm" style={{color: 'var(--text-tertiary)'}}>
+                  已显示全部内容
                 </div>
               )}
             </>
@@ -479,12 +420,9 @@ export default function Home() {
         </div>
 
         {/* 页脚 */}
-        <footer className="mt-12 pt-8 border-t border-cyber-primary/20 text-center text-cyber-text/40 text-xs relative z-10">
-          <div className="flex items-center justify-center gap-2">
-            <span className="inline-block w-2 h-2 bg-cyber-primary rounded-full"></span>
-            <p className="px-3 py-1 border border-cyber-primary/30 rounded">Powered by Next.js • Deployed on Vercel</p>
-            <span className="inline-block w-2 h-2 bg-cyber-secondary rounded-full"></span>
-          </div>
+        <footer className="mt-12 pt-6 text-center text-xs" style={{color: 'var(--text-tertiary)'}}>
+          <div className="apple-divider mb-4" />
+          <p>Powered by Next.js • Deployed on Vercel</p>
         </footer>
       </div>
     </main>

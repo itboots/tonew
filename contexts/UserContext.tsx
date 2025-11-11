@@ -76,7 +76,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
         .from('user_profiles')
         .select('theme, auto_refresh')
         .eq('id', userId)
-        .single()
+        .maybeSingle() // 使用 maybeSingle 代替 single，没有记录时返回 null 而不是错误
+
+      // 如果没有记录，创建默认配置
+      if (!data) {
+        console.log('No user profile found, creating default...')
+
+        // 尝试创建默认配置
+        const { error: insertError } = await supabase
+          .from('user_profiles')
+          .insert({
+            id: userId,
+            theme: 'apple',
+            auto_refresh: true,
+          })
+
+        if (insertError) {
+          console.error('Failed to create profile:', insertError)
+        }
+
+        // 设置默认偏好
+        setPreferences({
+          categories: [],
+          notifications: true,
+          theme: 'apple',
+          autoRefresh: true,
+        })
+        return
+      }
 
       if (error) {
         console.error('Failed to load preferences:', error)
@@ -98,6 +125,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
       })
     } catch (error) {
       console.error('Failed to load preferences:', error)
+      // 设置默认偏好
+      setPreferences({
+        categories: [],
+        notifications: true,
+        theme: 'apple',
+        autoRefresh: true,
+      })
     }
   }
 

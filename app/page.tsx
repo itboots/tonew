@@ -104,42 +104,102 @@ export default function Home() {
 
     try {
       const pageSize = 20;
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-      });
 
-      if (forceRefresh) {
-        params.append('refresh', 'true');
-      }
+      // 检测是否为电脑端（md 断点 768px）
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-      if (selectedCategory) {
-        params.append('category', encodeURIComponent(selectedCategory));
-      }
+      if (!isMobile && page === 1 && !selectedCategory) {
+        // 电脑端：并发加载所有分类数据
+        console.log('🖥️ 电脑端：并发加载所有分类数据');
 
-      const url = `/api/scrape?${params.toString()}`;
-      const response = await fetch(url);
-      const data: ScrapeResponse = await response.json();
-
-      if (data.success && data.data) {
-        if (page === 1) {
-          setItems(data.data);
-          setCurrentPage(1);
-          // 更新缓存
-          categoryCache.current.set(selectedCategory, data.data);
-        } else {
-          setItems(prev => [...prev, ...(data.data || [])]);
+        // 先加载分类列表（如果没有）
+        let categoriesToLoad = availableCategories;
+        if (categoriesToLoad.length === 0) {
+          try {
+            const response = await fetch('/api/categories');
+            const data = await response.json();
+            if (data.success && data.data) {
+              categoriesToLoad = data.data;
+            }
+          } catch (error) {
+            console.error('获取分类列表失败:', error);
+          }
         }
 
-        setTotalItems(data.metadata?.total || data.data.length);
-        setHasMore(data.data.length === pageSize);
+        // 并发请求所有分类的数据
+        const promises = categoriesToLoad.map(async (category) => {
+          const params = new URLSearchParams({
+            page: '1',
+            pageSize: pageSize.toString(),
+            category: encodeURIComponent(category)
+          });
 
-        // 如果是强制刷新，更新缓存状态
-      if (forceRefresh || data.metadata?.forceRefresh) {
-        await fetchCacheStatus();
-      }
-    } else {
-      setError(data.error || '获取内容失败');
+          if (forceRefresh) {
+            params.append('refresh', 'true');
+          }
+
+          try {
+            const response = await fetch(`/api/scrape?${params.toString()}`);
+            const data = await response.json();
+            return data.success ? data.data : [];
+          } catch (error) {
+            console.error(`加载分类 ${category} 失败:`, error);
+            return [];
+          }
+        });
+
+        // 等待所有请求完成
+        const results = await Promise.all(promises);
+
+        // 合并所有数据并按 importance 排序
+        const allData = results.flat().sort((a, b) => b.importance - a.importance);
+
+        setItems(allData);
+        setCurrentPage(1);
+        setTotalItems(allData.length);
+        setHasMore(false); // 电脑端不支持分页
+
+        if (forceRefresh) {
+          await fetchCacheStatus();
+        }
+      } else {
+        // 移动端或有分类筛选：单个请求
+        const params = new URLSearchParams({
+          page: page.toString(),
+          pageSize: pageSize.toString(),
+        });
+
+        if (forceRefresh) {
+          params.append('refresh', 'true');
+        }
+
+        if (selectedCategory) {
+          params.append('category', encodeURIComponent(selectedCategory));
+        }
+
+        const url = `/api/scrape?${params.toString()}`;
+        const response = await fetch(url);
+        const data: ScrapeResponse = await response.json();
+
+        if (data.success && data.data) {
+          if (page === 1) {
+            setItems(data.data);
+            setCurrentPage(1);
+            // 更新缓存
+            categoryCache.current.set(selectedCategory, data.data);
+          } else {
+            setItems(prev => [...prev, ...(data.data || [])]);
+          }
+
+          setTotalItems(data.metadata?.total || data.data.length);
+          setHasMore(data.data.length === pageSize);
+
+          if (forceRefresh || data.metadata?.forceRefresh) {
+            await fetchCacheStatus();
+          }
+        } else {
+          setError(data.error || '获取内容失败');
+        }
       }
     } catch (err) {
       setError('网络请求失败，请检查连接');
@@ -149,7 +209,7 @@ export default function Home() {
         setRefreshing(false);
       }
     }
-  }, [fetchCacheStatus, selectedCategory]);
+  }, [fetchCacheStatus, selectedCategory, availableCategories]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -435,13 +495,15 @@ export default function Home() {
       </nav>
 
       <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        {/* 分类过滤器 */}
-        <CategoryFilter
-          categories={availableCategories}
-          selectedCategory={selectedCategory}
-          onCategoryChange={handleCategoryChange}
-          isLoading={loading}
-        />
+        {/* 分类过滤器 - 仅移动端显示 */}
+        <div className="md:hidden">
+          <CategoryFilter
+            categories={availableCategories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={handleCategoryChange}
+            isLoading={loading}
+          />
+        </div>
 
         {/* 内容区域 */}
         <div className="mt-6">

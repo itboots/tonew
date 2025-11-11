@@ -75,12 +75,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }
 
   const updatePreferences = async (newPreferences: Partial<UserPreferences>) => {
-    if (!user) return
+    if (!user || !preferences) return
 
     setIsLoading(true)
     try {
-      // Mock update - just merge with existing preferences
-      const updatedPrefs = { ...preferences, ...newPreferences }
+      // Filter out undefined values and merge with existing preferences
+      const filteredPrefs = Object.fromEntries(
+        Object.entries(newPreferences).filter(([_, v]) => v !== undefined)
+      ) as Partial<UserPreferences>
+
+      const updatedPrefs: UserPreferences = { ...preferences, ...filteredPrefs }
       setPreferences(updatedPrefs)
     } catch (error) {
       console.error("Failed to update preferences:", error)
